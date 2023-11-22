@@ -46,7 +46,7 @@ def get_data(header_directory, save_directory):
     save_loc = os.path.join(save_directory, 'other_data')
     if not os.path.exists(save_loc):
         os.makedirs(save_loc)
-    save_loc = os.path.join(save_loc + 'other_data.npz')
+    save_loc = os.path.join(save_loc , 'other_data.npz')
     np.savez(save_loc, train_files=train_files, val_files=val_files, test_files=test_files, wvl=wvl)
 
 
