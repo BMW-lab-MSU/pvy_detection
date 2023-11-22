@@ -1,7 +1,7 @@
 import glob
 import random
 from utils import *
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 
 
@@ -12,7 +12,7 @@ def run_parallely(save_directory, data_kind, data):
 
     partial_processed = partial(save_extracted_data, save_loc=save_loc)
 
-    with ThreadPoolExecutor() as executor:
+    with ProcessPoolExecutor() as executor:
         executor.map(partial_processed, data)
 
 
