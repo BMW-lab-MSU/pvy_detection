@@ -5,7 +5,7 @@ from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 
 
-def run_parallely(save_directory, data_kind, data):
+def process_file(save_directory, data_kind, data):
     save_loc = os.path.join(save_directory, data_kind)
     if not os.path.exists(save_loc):
         os.makedirs(save_loc)
@@ -30,15 +30,15 @@ def get_data(header_directory, save_directory):
     print('---------- Extracting Training Data ----------')
     data_kind = 'train_raw'
 
-    run_parallely(save_directory, data_kind, train_files)
+    process_file(save_directory, data_kind, train_files)
 
     print('---------- Extracting Validation Data ----------')
     data_kind = 'val_raw'
-    run_parallely(save_directory, data_kind, val_files)
+    process_file(save_directory, data_kind, val_files)
 
     print('---------- Extracting Testing Data ----------')
     data_kind = 'test_raw'
-    run_parallely(save_directory, data_kind, test_files)
+    process_file(save_directory, data_kind, test_files)
 
     wvl = read_hyper(train_files[0])[1]
 
