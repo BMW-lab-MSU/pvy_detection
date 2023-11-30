@@ -29,7 +29,7 @@ def parse_annotations(xml_file):
         for mask_tag in image_tag.findall('.//mask'):
             mask_info = {
                 'label': mask_tag.get('label'),
-                'rle': mask_tag.get('rle').split(','),  # convert to list from str
+                'rle': [int(i) for i in mask_tag.get('rle').split(',')],  # convert to list of int from str
                 'left': int(mask_tag.get('left')),
                 'top': int(mask_tag.get('top')),
                 'width': int(mask_tag.get('width')),
@@ -51,9 +51,17 @@ def create_label_matrix(annotations):
         width = 2000
         height = 900
 
-        # if masks are not present then there will not be any foliage meaning the image can be called background
+        # masks are the potato blocks in these annotations
         if 'masks' in image_info:
             print(f"    Number of Mask: {len(image_info.get('masks'))}")
+            for mask in image_info.get('masks'):
+                print(f"{mask['top']}")
+                rle, left, top, target_width, target_height = (mask['rle'], mask['left'], mask['top'], mask['width'],
+                                                               mask['height'])
+                masked_image = rle2mask(rle, width, height, left, top, target_width, target_height)
+                break
+
+        # if masks are not present then there will not be any foliage meaning the image can be called background
         else:
             label_image = np.zeros([width, height], dtype=int)
 
