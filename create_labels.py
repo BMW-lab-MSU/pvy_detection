@@ -54,16 +54,19 @@ def create_label_matrix(annotations):
         # masks are the potato blocks in these annotations
         if 'masks' in image_info:
             print(f"    Number of Mask: {len(image_info.get('masks'))}")
+            masked_image = np.array(np.zeros([height, width]), dtype=np.uint8)
             for mask in image_info.get('masks'):
                 print(f"{mask['top']}")
                 rle, left, top, target_width, target_height = (mask['rle'], mask['left'], mask['top'], mask['width'],
                                                                mask['height'])
-                masked_image = rle2mask(rle, width, height, left, top, target_width, target_height)
-                break
+                tmp_masked_image = rle2mask(rle, width, height, left, top, target_width, target_height)
+                masked_image += tmp_masked_image
 
-        # if masks are not present then there will not be any foliage meaning the image can be called background
+            break
+
+        # if masks are not present then there will not be any foliage meaning the image can be called background (0)
         else:
-            label_image = np.zeros([width, height], dtype=int)
+            label_image = np.zeros([height, width], dtype=np.uint8)
 
     return label_image
 
@@ -72,7 +75,7 @@ if __name__ == "__main__":
     xml_file_path = os.path.join(info()['general_dir'], 'annotations.xml')
     annotations_data = parse_annotations(xml_file_path)
     label = create_label_matrix(annotations_data)
-    print(annotations_data)
+    # print(annotations_data)
 
     # for image in annotations_data:
     #     print(f"Image ID: {image['id']}, Image Name: {image['name']}")
