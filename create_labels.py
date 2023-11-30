@@ -25,11 +25,11 @@ def parse_annotations(xml_file):
         for mask_tag in image_tag.findall('.//mask'):
             mask_info = {
                 'label': mask_tag.get('label'),
-                'rle': mask_tag.get('rle'),
-                'left': mask_tag.get('left'),
-                'top': mask_tag.get('top'),
-                'width': mask_tag.get('width'),
-                'height': mask_tag.get('height'),
+                'rle': mask_tag.get('rle').split(','),
+                'left': int(mask_tag.get('left')),
+                'top': int(mask_tag.get('top')),
+                'width': int(mask_tag.get('width')),
+                'height': int(mask_tag.get('height')),
             }
 
             image_info.setdefault('masks', []).append(mask_info)
