@@ -26,7 +26,7 @@ def save_extracted_data(file, save_loc):
 
 
 def rle2mask(rle, source_width, source_height, left, top, target_width, target_height):
-    img = np.array(np.zeros([source_height, source_width]))
+    img = np.array(np.zeros([source_height, source_width]), dtype=np.uint8)
     decoded = [0] * (target_width * target_height)  # create bitmap container
     decoded_idx = 0
     value = 0
