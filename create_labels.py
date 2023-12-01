@@ -60,7 +60,7 @@ def create_label_matrix(annotations):
                 rle, left, top, target_width, target_height = (mask['rle'], mask['left'], mask['top'], mask['width'],
                                                                mask['height'])
                 tmp_masked_image = rle2mask(rle, width, height, left, top, target_width, target_height)
-                masked_image += tmp_masked_image
+                masked_image = np.maximum(masked_image, tmp_masked_image)
 
             break
 
