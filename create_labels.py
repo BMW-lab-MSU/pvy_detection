@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 from utils import *
+import matplotlib.pyplot as plt
 
 
 def parse_annotations(xml_file):
@@ -51,22 +52,43 @@ def create_label_matrix(annotations):
         width = 2000
         height = 900
 
+        masked_image = np.array(np.zeros([height, width]), dtype=np.uint8)
         # masks are the potato blocks in these annotations
         if 'masks' in image_info:
             print(f"    Number of Mask: {len(image_info.get('masks'))}")
-            masked_image = np.array(np.zeros([height, width]), dtype=np.uint8)
             for mask in image_info.get('masks'):
-                print(f"{mask['top']}")
                 rle, left, top, target_width, target_height = (mask['rle'], mask['left'], mask['top'], mask['width'],
                                                                mask['height'])
                 tmp_masked_image = rle2mask(rle, width, height, left, top, target_width, target_height)
                 masked_image = np.maximum(masked_image, tmp_masked_image)
 
-            break
-
         # if masks are not present then there will not be any foliage meaning the image can be called background (0)
         else:
             label_image = np.zeros([height, width], dtype=np.uint8)
+            continue
+
+        poly_image = np.array(np.zeros([height, width]), dtype=np.uint8)
+
+        if 'polygons' in image_info:
+            print(f"    Number of Polygons: {len(image_info.get('polygons'))}")
+            for poly in image_info.get('polygons'):
+                print(f"Polygon Label: {poly['label']}, Points: {poly['points']}")
+                points = poly['points']
+                # points is in str, and need to converted to coordinate system
+                points = points.split(';')
+                points = [tuple(map(float, pair.split(','))) for pair in points]
+
+                if poly['label'] == 'pvy_positive':
+                    tmp_poly_image = poly2mask(points, width, height, 3)
+                    poly_image = np.maximum(poly_image, tmp_poly_image)
+
+                if poly['label'] == 'pvy_negative':
+                    tmp_poly_image = poly2mask(points, width, height, 2)
+                    poly_image = np.maximum(poly_image, tmp_poly_image)
+
+        label_image = np.multiply(masked_image, poly_image)
+        plt.imshow(label_image)
+        plt.show()
 
     return label_image
 
