@@ -1,6 +1,8 @@
 import os
 import spectral as sp
 import numpy as np
+from shapely.geometry import Polygon
+from PIL import Image, ImageDraw
 
 
 # read hyperspectral image by bands
@@ -25,23 +27,34 @@ def save_extracted_data(file, save_loc):
     del img
 
 
+# decode the run length encoding to get the mask
 def rle2mask(rle, source_width, source_height, left, top, target_width, target_height):
-    img = np.array(np.zeros([source_height, source_width]), dtype=np.uint8)
+    mask = np.array(np.zeros([source_height, source_width]), dtype=np.uint8)
     decoded = [0] * (target_width * target_height)  # create bitmap container
     decoded_idx = 0
     value = 0
 
-    for v in rle:
-        decoded[decoded_idx:decoded_idx + v] = [value] * v
-        decoded_idx += v
+    for i in rle:
+        decoded[decoded_idx:decoded_idx + i] = [value] * i
+        decoded_idx += i
         value = abs(value - 1)
 
     decoded = np.array(decoded, dtype=np.uint8)
     decoded = decoded.reshape((target_height, target_width))  # reshape to image size
 
-    img[top:top + decoded.shape[0], left:left + decoded.shape[1]] = decoded
+    mask[top:top + decoded.shape[0], left:left + decoded.shape[1]] = decoded
 
-    return img
+    return mask
+
+
+# get the polygon converted to mask
+def poly2mask(points, source_width, source_height, filling_number):
+    img = Image.new('L', (source_width, source_height), 0)
+    draw = ImageDraw.Draw(img)
+    draw.polygon(points, outline=filling_number, fill=filling_number)
+    mask = np.array(img)
+
+    return mask
 
 
 # store the filepaths and other required information
