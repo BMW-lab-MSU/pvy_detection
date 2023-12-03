@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 from utils import *
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 
 def parse_annotations(xml_file):
@@ -43,10 +43,11 @@ def parse_annotations(xml_file):
     return annotations
 
 
-def create_label_matrix(annotations):
-    label_image = []
+def create_label_matrix(annotations, save_loc):
+    # label_image = []
     for image_info in annotations:
-        print(f"Creating labels for Image {image_info['id']} - {image_info['name']}")
+        name = image_info['name']
+        print(f"Creating labels for Image {image_info['id']} - {name}")
 
         # default width and height of the original images collected are 2000 and 900 respectively
         width = 2000
@@ -63,16 +64,16 @@ def create_label_matrix(annotations):
                 masked_image = np.maximum(masked_image, tmp_masked_image)
 
         # if masks are not present then there will not be any foliage meaning the image can be called background (0)
-        else:
-            label_image = np.zeros([height, width], dtype=np.uint8)
-            continue
+        # else:
+        #     label_image = np.zeros([height, width], dtype=np.uint8)
+        #     continue
 
         poly_image = np.array(np.zeros([height, width]), dtype=np.uint8)
 
         if 'polygons' in image_info:
             print(f"    Number of Polygons: {len(image_info.get('polygons'))}")
             for poly in image_info.get('polygons'):
-                print(f"Polygon Label: {poly['label']}, Points: {poly['points']}")
+                print(f"Polygon Label: {poly['label']}")
                 points = poly['points']
                 # points is in str, and need to converted to coordinate system
                 points = points.split(';')
@@ -87,16 +88,22 @@ def create_label_matrix(annotations):
                     poly_image = np.maximum(poly_image, tmp_poly_image)
 
         label_image = np.multiply(masked_image, poly_image)
-        plt.imshow(label_image)
-        plt.show()
+        save_file = os.path.join(save_loc, name + '.npy')
+        np.save(save_file, label_image)
 
-    return label_image
+        # plt.imshow(label_image)
+        # plt.title('Label for ' + name)
+        # plt.show()
 
 
 if __name__ == "__main__":
     xml_file_path = os.path.join(info()['general_dir'], 'annotations.xml')
     annotations_data = parse_annotations(xml_file_path)
-    label = create_label_matrix(annotations_data)
+    save_dir = os.path.join(info()['save_dir'], 'labels')
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    create_label_matrix(annotations_data, save_dir)
+    print('Done!')
     # print(annotations_data)
 
     # for image in annotations_data:
