@@ -30,9 +30,21 @@ def get_data(header_directory, save_directory):
     val_files = header_directory[split_idx_trn: split_idx_trn + split_idx_val]
     test_files = header_directory[split_idx_trn + split_idx_val:]
 
+    # create data split directories
+    dir_name = os.path.join(save_directory, 'train_raw')
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+
+    dir_name = os.path.join(save_directory, 'val_raw')
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+
+    dir_name = os.path.join(save_directory, 'test_raw')
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+
     print('---------- Extracting Training Data ----------')
     data_kind = 'train_raw'
-
     process_file(save_directory, data_kind, train_files)
 
     print('---------- Extracting Validation Data ----------')

@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
+import numpy as np
 from utils import *
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 
 def parse_annotations(xml_file):
@@ -58,15 +59,15 @@ def create_label_matrix(annotations, save_loc):
         if 'masks' in image_info:
             print(f"    Number of Mask: {len(image_info.get('masks'))}")
             for mask in image_info.get('masks'):
+                print(f"Mask Label: {mask['label']}")
                 rle, left, top, target_width, target_height = (mask['rle'], mask['left'], mask['top'], mask['width'],
                                                                mask['height'])
-                tmp_masked_image = rle2mask(rle, width, height, left, top, target_width, target_height)
-                masked_image = np.maximum(masked_image, tmp_masked_image)
-
-        # if masks are not present then there will not be any foliage meaning the image can be called background (0)
-        # else:
-        #     label_image = np.zeros([height, width], dtype=np.uint8)
-        #     continue
+                if mask['label'] == 'potato_block':
+                    tmp_masked_image = rle2mask(rle, width, height, left, top, target_width, target_height, 1)
+                    masked_image = np.maximum(masked_image, tmp_masked_image)
+                elif mask['label'] == 'resistant':
+                    tmp_masked_image = rle2mask(rle, width, height, left, top, target_width, target_height, 2)
+                    masked_image = np.maximum(masked_image, tmp_masked_image)
 
         poly_image = np.array(np.zeros([height, width]), dtype=np.uint8)
 
@@ -79,20 +80,33 @@ def create_label_matrix(annotations, save_loc):
                 points = points.split(';')
                 points = [tuple(map(float, pair.split(','))) for pair in points]
 
-                if poly['label'] == 'pvy_positive':
+                if poly['label'] == 'pvy_negative':
                     tmp_poly_image = poly2mask(points, width, height, 3)
                     poly_image = np.maximum(poly_image, tmp_poly_image)
 
-                if poly['label'] == 'pvy_negative':
-                    tmp_poly_image = poly2mask(points, width, height, 2)
+                if poly['label'] == 'pvy_positive':
+                    tmp_poly_image = poly2mask(points, width, height, 4)
+                    poly_image = np.maximum(poly_image, tmp_poly_image)
+
+                if poly['label'] == 'unknown':
+                    tmp_poly_image = poly2mask(points, width, height, 5)
                     poly_image = np.maximum(poly_image, tmp_poly_image)
 
         label_image = np.multiply(masked_image, poly_image)
+        print(f"Maximum value: {np.max(label_image)}, Unique Values: {np.unique(label_image)}")
         save_file = os.path.join(save_loc, name + '.npy')
-        np.save(save_file, label_image)
+        np.save(str(save_file), label_image)
 
-        # plt.imshow(label_image)
-        # plt.title('Label for ' + name)
+        # display/save the image
+        # labels ww will have: 0, 3, 4, 5, 6, 10
+
+        plt.imshow(label_image, cmap='viridis')
+        plt.title('Label for ' + name)
+        cbar = plt.colorbar(orientation='horizontal')
+        cbar.set_label('Label Values')
+        save_img = os.path.join(save_loc, name)
+        plt.savefig(save_img, dpi=300)
+        plt.close()
         # plt.show()
 
 

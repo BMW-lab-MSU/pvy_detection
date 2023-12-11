@@ -1,7 +1,7 @@
 import os
 import spectral as sp
 import numpy as np
-from shapely.geometry import Polygon
+# from shapely.geometry import Polygon
 from PIL import Image, ImageDraw
 
 
@@ -12,7 +12,8 @@ def read_hyper(header_path):
     scale_factor = hdr.scale_factor
     wv = hdr.bands.centers
     # float32 is default and goes off-range for last few bands - so convert to float64
-    img = np.float64(hdr.read_bands(range(0, bands))) * scale_factor
+    # img = np.float64(hdr.read_bands(range(0, bands))) * scale_factor
+    img = hdr.read_bands(range(0, bands)) * scale_factor
     # read_bands reads all the available bands
     return img, wv
 
@@ -23,12 +24,12 @@ def save_extracted_data(file, save_loc):
     print(f"Processing file: {filename}")
     img = read_hyper(file)[0]
     save_name = os.path.join(save_loc, filename + '.npy')   # save as numpy array
-    np.save(save_name, img)
+    np.save(str(save_name), img)
     del img
 
 
 # decode the run length encoding to get the mask
-def rle2mask(rle, source_width, source_height, left, top, target_width, target_height):
+def rle2mask(rle, source_width, source_height, left, top, target_width, target_height, filling_number):
     mask = np.array(np.zeros([source_height, source_width]), dtype=np.uint8)
     decoded = [0] * (target_width * target_height)  # create bitmap container
     decoded_idx = 0
@@ -43,6 +44,7 @@ def rle2mask(rle, source_width, source_height, left, top, target_width, target_h
     decoded = decoded.reshape((target_height, target_width))  # reshape to image size
 
     mask[top:top + decoded.shape[0], left:left + decoded.shape[1]] = decoded
+    mask[mask == 1] = filling_number
 
     return mask
 
@@ -61,7 +63,7 @@ def poly2mask(points, source_width, source_height, filling_number):
 def info():
     file_directory = {
         'general_dir': '/media/SIDSSD/precisionag/Potatoes/MSU Flights/2023-07-12/data',
-        'raw_data': '/media/SIDSSD/precisionag/Potatoes/MSU Flights/2023-07-12/data/raw_radiance_reflectance',
+        'raw_data': '/media/SIDSSD/precisionag/Potatoes/MSU Flights/2023-07-12/data/hyper_data',
         'save_dir': '/media/SIDSSD/precisionag/Potatoes/MSU Flights/2023-07-12/data/extracted_data',
     }
 
