@@ -59,6 +59,17 @@ def poly2mask(points, source_width, source_height, filling_number):
     return mask
 
 
+# label correction info
+def label_correction():
+    flip_axis = {
+        '0': 0, '1': 0, '2': 0, '3': 0, '4': 0, '5': 1, '6': 1, '7': 1, '8': 1, '9': 0, '10': 0, '11': 0, '12': 0,
+        '13': 0, '14': 0, '15': 1, '16': 1, '17': 0, '18': 0, '19': 0, '20': 0, '21': 0, '22': 0, '23': 1, '24': 1,
+        '25': 1, '26': 0, '27': 0, '28': 0, '29': 0, '30': 0,
+    }
+
+    return flip_axis
+
+
 # store the filepaths and other required information
 def info():
     file_directory = {
