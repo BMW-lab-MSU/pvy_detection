@@ -92,22 +92,23 @@ def create_label_matrix(annotations, save_loc):
                     tmp_poly_image = poly2mask(points, width, height, 5)
                     poly_image = np.maximum(poly_image, tmp_poly_image)
 
-        label_image = np.multiply(masked_image, poly_image)
+        label_image = np.transpose(np.multiply(masked_image, poly_image))   # for matching the dimension
+        label_image = np.flip(label_image, axis=label_correction()[image_info['id']])
         print(f"Maximum value: {np.max(label_image)}, Unique Values: {np.unique(label_image)}")
         save_file = os.path.join(save_loc, name + '.npy')
         np.save(str(save_file), label_image)
 
         # display/save the image
         # labels ww will have: 0, 3, 4, 5, 6, 10
-
+        label_image = np.transpose(label_image) # for display purpose
         plt.imshow(label_image, cmap='viridis')
         plt.title('Label for ' + name)
         cbar = plt.colorbar(orientation='horizontal')
         cbar.set_label('Label Values')
         save_img = os.path.join(save_loc, name)
         plt.savefig(save_img, dpi=300)
-        plt.close()
         # plt.show()
+        plt.close()
 
 
 if __name__ == "__main__":
