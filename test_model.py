@@ -1,10 +1,12 @@
 import xml.etree.ElementTree as ET
 
 import numpy as np
-
+import random
 from utils import *
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
 from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Dropout, BatchNormalization, LeakyReLU
@@ -15,10 +17,12 @@ if __name__ == "__main__":
     # load dataset
     # (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
+    print("Loading training data")
     train_label = np.load(os.path.join(info()['save_dir'], 'labels', '2023_06_29_Potatoes_Pika_L_35-batch-RGB.png.npy'))
     train_data = np.load(os.path.join(info()['save_dir'], 'train_raw', '2023_06_29_Potatoes_Pika_L_35-Bad Band '
                                                                        'Removal.bip.hdr.npy'))
 
+    print("Loading test data")
     test_label = np.load(os.path.join(info()['save_dir'], 'labels', '2023_06_29_Potatoes_Pika_L_34-batch-RGB.png.npy'))
     test_data = np.load(os.path.join(info()['save_dir'], 'test_raw', '2023_06_29_Potatoes_Pika_L_34-Bad Band '
                                                                      'Removal.bip.hdr.npy'))
@@ -41,6 +45,20 @@ if __name__ == "__main__":
 
     x_train = train_data[train_to_keep_idx, :]
     x_test = test_data[test_to_keep_idx, :]
+
+    # keep same amount of 0, 3, and 6 (should be 0, 1, 3) from training data (4 is infected)
+    idx_train_0 = np.where(y_train[:, 0] == 1)[0]
+    idx_train_1 = np.where(y_train[:, 1] == 1)[0]
+    idx_train_2 = np.where(y_train[:, 2] == 1)[0]
+    idx_train_3 = np.where(y_train[:, 3] == 1)[0]
+
+    random.seed(10)
+    idx_0 = random.sample(list(idx_train_0), len(idx_train_2))
+    idx_1 = random.sample(list(idx_train_1), len(idx_train_2))
+    idx_3 = random.sample(list(idx_train_3), len(idx_train_2))
+    y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
+    y_train = y_train[y_train_idx]
+    x_train = x_train[y_train_idx, :]
 
     # # count the number of unique train labels
     # unique, counts = np.unique(y_train, return_counts=True)
@@ -134,10 +152,56 @@ if __name__ == "__main__":
                   optimizer='adam',
                   metrics=['accuracy'])
 
-    model.fit(x_train, y_train, epochs=20, batch_size=batch_size)
+    model.fit(x_train, y_train, epochs=50, batch_size=batch_size)
 
     loss, acc = model.evaluate(x_test, y_test, batch_size=batch_size)
     print("\nTest accuracy: %.1f%%" % (100.0 * acc))
+
+    # Make predictions using your trained model
+    y_pred = model.predict(x_test)
+
+    # Convert predictions and true labels to class labels
+    y_pred_classes = np.argmax(y_pred, axis=1)
+    y_true_classes = np.argmax(y_test, axis=1)
+
+    # Create a confusion matrix
+    conf_matrix = confusion_matrix(y_true_classes, y_pred_classes)
+    print(conf_matrix)
+
+    # Labeling the axes
+    classes = y_true_classes  # Replace with your actual class labels
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes)
+    plt.yticks(tick_marks, classes)
+
+    # Displaying the values in the cells
+    for i in range(len(classes)):
+        for j in range(len(classes)):
+            plt.text(j, i, str(conf_matrix[i, j]), horizontalalignment='center', verticalalignment='center')
+
+    # Labeling the plot
+    plt.xlabel('Predicted Labels')
+    plt.ylabel('True Labels')
+
+    # Save the figure
+    plt.savefig('confusion_matrix.png')
+
+    # Display the plot (optional)
+    plt.show()
+
+    # # Plot the confusion matrix
+    # plt.figure(figsize=(10, 8))
+    # sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', cbar=False,
+    #             xticklabels=y_pred_classes, yticklabels=y_true_classes)
+    # plt.xlabel('Predicted Labels')
+    # plt.ylabel('True Labels')
+    # plt.title('Confusion Matrix')
+    #
+    # # Save the figure
+    # plt.savefig('confusion_matrix.png')
+    #
+    # # Display the plot (optional)
+    # plt.show()
 
     # model.add(Dense(hidden_units,
     #                 kernel_regularizer=l2(0.001),
