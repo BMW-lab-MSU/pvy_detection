@@ -8,7 +8,7 @@ from utils import read_hyper, info
 from keras.models import Sequential
 from keras.regularizers import l2
 from keras.utils import to_categorical
-from keras.layers import Dense, Activation, Dropout, BatchNormalization, LeakyReLU
+from keras.layers import Dense, Activation, Dropout, BatchNormalization, LeakyReLU, Conv1D, MaxPooling1D
 from sklearn.utils import class_weight
 from sklearn.metrics import confusion_matrix
 
@@ -74,9 +74,9 @@ if __name__ == "__main__":
     test_label = test_label.flatten()
 
     # CHANGE TO WANTED LABELS
-    # labels_to_keep = [0, 3, 4, 6]
+    labels_to_keep = [0, 3, 4, 6]
     # labels_to_keep = [3, 4, 6]
-    labels_to_keep = [3, 4]
+    # labels_to_keep = [3, 4]
 
     train_to_keep_idx = np.where(np.isin(train_label, labels_to_keep))[0]
     test_to_keep_idx = np.where(np.isin(test_label, labels_to_keep))[0]
@@ -96,33 +96,34 @@ if __name__ == "__main__":
     # keep same amount of 0, 3, and 6 (should be 0, 1, 3) from training data (4 is infected)
     idx_train_0 = np.where(y_train[:, 0] == 1)[0]
     idx_train_1 = np.where(y_train[:, 1] == 1)[0]
-    # idx_train_2 = np.where(y_train[:, 2] == 1)[0]
-    # idx_train_3 = np.where(y_train[:, 3] == 1)[0]
+    idx_train_2 = np.where(y_train[:, 2] == 1)[0]
+    idx_train_3 = np.where(y_train[:, 3] == 1)[0]
 
     random.seed(10)
     idx_0 = random.sample(list(idx_train_0), round(len(idx_train_0) * 0.3))
-    # idx_1 = random.sample(list(idx_train_1), round(len(idx_train_1) * 0.3))
+    idx_1 = random.sample(list(idx_train_1), round(len(idx_train_1) * 0.3))
     # idx_2 = random.sample(list(idx_train_2), round(len(idx_train_2) * 0.3))
-    # idx_3 = random.sample(list(idx_train_3), round(len(idx_train_3) * 0.3))
+    idx_3 = random.sample(list(idx_train_3), round(len(idx_train_3) * 0.3))
 
     # idx_0 = random.sample(list(idx_train_0), len(idx_train_2) * 2)
     # idx_1 = random.sample(list(idx_train_1), len(idx_train_2) * 2)
     # idx_3 = random.sample(list(idx_train_3), len(idx_train_2) * 2)
 
-    # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
+    y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
     # y_train_idx = np.concatenate([idx_0, idx_train_1, idx_2])
-    y_train_idx = np.concatenate([idx_0, idx_train_1])
+    # y_train_idx = np.concatenate([idx_0, idx_train_1])
     y_train = y_train[y_train_idx]
     x_train = x_train[y_train_idx, :]
 
     y_train_flat = np.argmax(y_train, axis=1)
     class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(y_train_flat), y=y_train_flat)
 
-    # num_labels = 4
+    num_labels = 4
     # num_labels = 3
-    num_labels = 2
+    # num_labels = 2
 
-    input_size = 224 * 3
+    # input_size = 224 * 3
+    input_size = (224 * 3, 1)
     batch_size = 128
     hidden_units = 256
     dropout = 0.5  # Slightly increased dropout for regularization
@@ -131,7 +132,13 @@ if __name__ == "__main__":
     model = Sequential()
 
     # model.add(Dense(hidden_units, input_dim=input_size))
-    model.add(Dense(hidden_units, input_dim=input_size, kernel_regularizer=l2(0.01)))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu', input_shape=input_size))
+    model.add(Conv1D(filters=64, kernel_size=3, activation='relu'))
+    model.add(MaxPooling1D(pool_size=2))
+    model.add(Dropout(dropout))
+    model.add(Dense(hidden_units, kernel_regularizer=l2(0.01)))
+
+    # model.add(Dense(hidden_units, input_dim=input_size, kernel_regularizer=l2(0.01)))
     model.add(BatchNormalization())  # Add Batch Normalization
     # model.add(Activation('relu'))
     model.add(LeakyReLU(alpha=0.1))  # Use Leaky ReLU instead of ReLU
@@ -149,8 +156,7 @@ if __name__ == "__main__":
     model.add(Activation('relu'))
     model.add(Dropout(dropout))
 
-    model.add(Dense(num_labels))
-    model.add(Activation('softmax'))
+    model.add(Dense(num_labels, activation='softmax'))
 
     model.summary()
 

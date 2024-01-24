@@ -74,7 +74,7 @@ def label_correction():
 def info():
     file_directory = {
         'general_dir': '/media/SIDSSD/precisionag/Potatoes/MSU Flights/2023-07-12/data',
-        'raw_data': '/media/SIDSSD/precisionag/Potatoes/MSU Flights/2023-07-12/data/hyper_data',
+        'raw_data': '/media/SIDSSD/precisionag/Potatoes/MSU Flights/2023-07-12/data/hyper_data_raw_band_removed',
         'save_dir': '/media/SIDSSD/precisionag/Potatoes/MSU Flights/2023-07-12/data/extracted_data',
     }
 
