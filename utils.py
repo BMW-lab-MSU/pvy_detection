@@ -1,4 +1,5 @@
 import os
+import re
 import spectral as sp
 import numpy as np
 # from shapely.geometry import Polygon
@@ -23,9 +24,88 @@ def save_extracted_data(file, save_loc):
     filename = file.split('/')[-1]
     print(f"Processing file: {filename}")
     img = read_hyper(file)[0]
-    save_name = os.path.join(save_loc, filename + '.npy')   # save as numpy array
+    save_name = os.path.join(save_loc, filename + '.npy')  # save as numpy array
     np.save(str(save_name), img)
     del img
+
+
+def concatenate_data_label(file_num, file_info):
+    file_raw = file_info[0][file_num]
+    file_first = file_info[1][file_num]
+    file_second = file_info[2][file_num]
+    file_label = file_info[3][file_num]
+
+    idx = list(range(10, 175)) + list(range(185, 244))
+
+    print(f"Processing file: {file_raw.split('/')[-1]}")
+    img0 = read_hyper(file_raw)[0]
+    print(f"Processing file: {file_first.split('/')[-1]}")
+    img1 = read_hyper(file_first)[0]
+    img1 = img1[:, :, idx]
+    print(f"Processing file: {file_second.split('/')[-1]}")
+    img2 = read_hyper(file_second)[0]
+    img2 = img2[:, :, idx]
+
+    img = np.concatenate((img0, img1, img2), axis=2)
+    del img0, img1, img2
+
+    print(f"Loading Label File : {file_label.split('/')[-1]}")
+    label = np.load(file_label).flatten()
+
+    labels_to_keep = [0, 3, 4, 6]
+    to_keep_idx = np.where(np.isin(label, labels_to_keep))[0]
+    label = label[to_keep_idx]
+
+    img = img.reshape((1800000, 224 * 3))
+    img = img[to_keep_idx, :]
+
+    return img, label
+
+
+# save the hyperspectral data and their derivatives (1st, 2nd) by pixels
+def save_data_by_pixels(file_num, file_info, save_loc):
+    print(file_num)
+    [img, label] = concatenate_data_label(file_num, file_info)
+
+    # make directories if they do not exist
+    class_dir_loc = os.path.join(save_loc, 'background')
+    print(class_dir_loc)
+    if not os.path.exists(class_dir_loc):
+        os.makedirs(class_dir_loc)
+    class_dir_loc = os.path.join(save_loc, 'healthy')
+    if not os.path.exists(class_dir_loc):
+        os.makedirs(class_dir_loc)
+    class_dir_loc = os.path.join(save_loc, 'infected')
+    if not os.path.exists(class_dir_loc):
+        os.makedirs(class_dir_loc)
+    class_dir_loc = os.path.join(save_loc, 'resistant')
+    if not os.path.exists(class_dir_loc):
+        os.makedirs(class_dir_loc)
+
+    file_raw = file_info[0][file_num]
+    filename_base = 'Image_' + re.search(r'(\d+)-', file_raw.split('/')[-1]).group(1)
+
+    for count in range(len(label)):
+        filename = filename_base + '_Pixel_' + str(count)
+        save_name = []
+        if label[count] == 0:  # background
+            class_dir_loc = os.path.join(save_loc, 'background')
+            save_name = os.path.join(class_dir_loc, filename + '.npy')
+
+        if label[count] == 3:  # healthy
+            class_dir_loc = os.path.join(save_loc, 'healthy')
+            save_name = os.path.join(class_dir_loc, filename + '.npy')
+
+        if label[count] == 4:  # infected
+            class_dir_loc = os.path.join(save_loc, 'infected')
+            save_name = os.path.join(class_dir_loc, filename + '.npy')
+
+        if label[count] == 6:  # resistant
+            class_dir_loc = os.path.join(save_loc, 'resistant')
+            save_name = os.path.join(class_dir_loc, filename + '.npy')
+
+        print(f'Saving file :  {save_name}')
+        np.save(save_name, img[count, :])
 
 
 # decode the run length encoding to get the mask
