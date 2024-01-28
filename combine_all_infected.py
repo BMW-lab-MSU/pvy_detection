@@ -164,7 +164,7 @@ if __name__ == "__main__":
               validation_data=(val_data, val_labels),
               class_weight=dict(enumerate(class_weights)))
 
-    np.save(os.path.join(info()['save_dir'], 'model.h5'), model)
+    model.save(os.path.join(info()['save_dir'], 'model.keras'))
 
     # # plot training validation loss and accuracy
     # Access the training history
