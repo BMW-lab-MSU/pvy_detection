@@ -3,13 +3,12 @@ import glob
 import random
 import numpy as np
 import seaborn as sns
-import tensorflow as tf
 import matplotlib.pyplot as plt
 from utils import read_hyper, info
 from keras.models import Sequential
 from keras.regularizers import l2
 from keras.utils import to_categorical
-from keras.layers import Dense, Activation, Dropout, BatchNormalization, LeakyReLU, Conv1D, MaxPooling1D
+from keras.layers import Dense, Activation, Dropout, BatchNormalization, LeakyReLU
 from sklearn.utils import class_weight
 from sklearn.metrics import confusion_matrix
 
@@ -27,7 +26,11 @@ if __name__ == "__main__":
     idx_val = [6, 20]
     idx_test = [7, 15]
     idx = list(range(10, 175)) + list(range(185, 244))
-    labels_to_keep = [0, 3, 4, 6]
+
+    # labels_to_keep = [0, 3, 4, 6]   # 0 bck, 3 neg, 4 pos, 6 res
+    # labels_to_keep = [0, 3, 4]  # 0 bck, 3 neg, 4 pos, 6 res
+    # labels_to_keep = [3, 4, 6]  # 0 bck, 3 neg, 4 pos, 6 res
+    labels_to_keep = [3, 4]  # 0 bck, 3 neg, 4 pos, 6 res
 
     # TRAINING DATA ACCUMULATION
     train_labels = np.empty((0, len(labels_to_keep)))
@@ -51,20 +54,27 @@ if __name__ == "__main__":
         # keep same amount of 0, 3, and 6 (should be 0, 1, 3) from training data (4 is infected)
         idx_train_0 = np.where(y_val[:, 0] == 1)[0]
         idx_train_1 = np.where(y_val[:, 1] == 1)[0]
-        idx_train_2 = np.where(y_val[:, 2] == 1)[0]
-        idx_train_3 = np.where(y_val[:, 3] == 1)[0]
+        # idx_train_2 = np.where(y_val[:, 2] == 1)[0]
+        # idx_train_3 = np.where(y_val[:, 3] == 1)[0]
 
-        min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2), len(idx_train_3)])
+        # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2), len(idx_train_3)])
+        # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2)])
+        min_value = np.min([len(idx_train_0), len(idx_train_1)])
 
         if min_value > 0:
             random.seed(10)
             idx_0 = random.sample(list(idx_train_0), min_value)
-            idx_1 = random.sample(list(idx_train_1), min_value)
-            idx_3 = random.sample(list(idx_train_3), min_value)
+            # idx_1 = random.sample(list(idx_train_1), min_value)
+            # idx_2 = random.sample(list(idx_train_2), min_value)
+            # idx_3 = random.sample(list(idx_train_3), min_value)
 
-            y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
+            # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
+            # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2])
+            # y_train_idx = np.concatenate([idx_0, idx_train_1, idx_2])
+            y_train_idx = np.concatenate([idx_0, idx_train_1])
         else:
-            y_train_idx = idx_train_2
+            # y_train_idx = idx_train_2
+            y_train_idx = idx_train_1
 
         y_train = y_val[y_train_idx]
         x_train = img[y_train_idx, :]
@@ -95,20 +105,27 @@ if __name__ == "__main__":
         # keep same amount of 0, 3, and 6 (should be 0, 1, 3) from training data (4 is infected)
         idx_train_0 = np.where(y_val[:, 0] == 1)[0]
         idx_train_1 = np.where(y_val[:, 1] == 1)[0]
-        idx_train_2 = np.where(y_val[:, 2] == 1)[0]
-        idx_train_3 = np.where(y_val[:, 3] == 1)[0]
+        # idx_train_2 = np.where(y_val[:, 2] == 1)[0]
+        # idx_train_3 = np.where(y_val[:, 3] == 1)[0]
 
-        min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2), len(idx_train_3)])
+        # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2), len(idx_train_3)])
+        # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2)])
+        min_value = np.min([len(idx_train_0), len(idx_train_1)])
 
         if min_value > 0:
             random.seed(10)
             idx_0 = random.sample(list(idx_train_0), min_value)
-            idx_1 = random.sample(list(idx_train_1), min_value)
-            idx_3 = random.sample(list(idx_train_3), min_value)
+            # idx_1 = random.sample(list(idx_train_1), min_value)
+            # idx_2 = random.sample(list(idx_train_2), min_value)
+            # idx_3 = random.sample(list(idx_train_3), min_value)
 
-            y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
+            # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
+            # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2])
+            # y_train_idx = np.concatenate([idx_0, idx_train_1, idx_2])
+            y_train_idx = np.concatenate([idx_0, idx_train_1])
         else:
-            y_train_idx = idx_train_2
+            # y_train_idx = idx_train_2
+            y_train_idx = idx_train_1
 
         y_train = y_val[y_train_idx]
         x_train = img[y_train_idx, :]
@@ -120,7 +137,7 @@ if __name__ == "__main__":
     y_train_flat = np.argmax(train_labels, axis=1)
     class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(y_train_flat), y=y_train_flat)
 
-    num_labels = 4
+    num_labels = len(labels_to_keep)
 
     input_size = 224 * 3
     batch_size = 128
@@ -136,7 +153,7 @@ if __name__ == "__main__":
     model.add(LeakyReLU(alpha=0.1))  # Use Leaky ReLU instead of ReLU
     model.add(Dropout(dropout))
 
-    model.add(Dense(hidden_units))
+    # model.add(Dense(hidden_units))
     model.add(Dense(2 * hidden_units, kernel_regularizer=l2(0.01)))
     model.add(BatchNormalization())  # Add Batch Normalization
     model.add(Activation('relu'))
@@ -152,7 +169,7 @@ if __name__ == "__main__":
 
     model.summary()
 
-    model.compile(loss='categorical_crossentropy',
+    model.compile(loss='binary_crossentropy',  # categorical_crossentropy, binary_crossentropy
                   optimizer='adam',
                   metrics=['accuracy'])
 
@@ -164,7 +181,10 @@ if __name__ == "__main__":
               validation_data=(val_data, val_labels),
               class_weight=dict(enumerate(class_weights)))
 
-    model.save(os.path.join(info()['save_dir'], 'model.keras'))
+    model.save(os.path.join(info()['save_dir'], 'model_' + ''.join(map(str, labels_to_keep)) + '_classes.keras'))
+    # model = keras.models.load_model(os.path.join(info()['save_dir'], 'model.keras'))
+
+    del train_data, train_labels, val_data, val_labels
 
     # # plot training validation loss and accuracy
     # Access the training history
@@ -200,7 +220,7 @@ if __name__ == "__main__":
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig(os.path.join(info()['save_dir'], 'train_val_loss_acc.png'))
+    plt.savefig(os.path.join(info()['save_dir'], 'train_val_loss_acc_' + ''.join(map(str, labels_to_keep)) + '_classes.png'))
     # plt.show()
 
     # TEST DATA ACCUMULATION
@@ -222,8 +242,36 @@ if __name__ == "__main__":
         img = img.reshape((1800000, 224 * 3))
         img = img[to_keep_idx, :]
 
-        test_labels = np.concatenate((test_labels, y_val), axis=0)
-        test_data = np.concatenate((test_data, img), axis=0)
+        # keep same amount of 0, 3, and 6 (should be 0, 1, 3) from training data (4 is infected)
+        idx_train_0 = np.where(y_val[:, 0] == 1)[0]
+        idx_train_1 = np.where(y_val[:, 1] == 1)[0]
+        # idx_train_2 = np.where(y_val[:, 2] == 1)[0]
+        # idx_train_3 = np.where(y_val[:, 3] == 1)[0]
+
+        # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2), len(idx_train_3)])
+        # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2)])
+        min_value = np.min([len(idx_train_0), len(idx_train_1)])
+
+        if min_value > 0:
+            random.seed(10)
+            idx_0 = random.sample(list(idx_train_0), min_value)
+            # idx_1 = random.sample(list(idx_train_1), min_value)
+            # idx_2 = random.sample(list(idx_train_2), min_value)
+            # idx_3 = random.sample(list(idx_train_3), min_value)
+
+            # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
+            # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2])
+            # y_train_idx = np.concatenate([idx_0, idx_train_1, idx_2])
+            y_train_idx = np.concatenate([idx_0, idx_train_1])
+        else:
+            y_train_idx = idx_train_1
+
+        y_train = y_val[y_train_idx]
+        x_train = img[y_train_idx, :]
+        del img
+
+        test_labels = np.concatenate((test_labels, y_train), axis=0)
+        test_data = np.concatenate((test_data, x_train), axis=0)
 
     predicted = model.predict(test_data)
 
@@ -235,7 +283,10 @@ if __name__ == "__main__":
     conf_matrix = confusion_matrix(true_classes, predicted_classes)
     print(conf_matrix)
 
-    classes = ['background', 'negative', 'positive', 'resistant negative']
+    # classes = ['background', 'negative', 'positive', 'resistant negative']
+    # classes = ['background', 'negative', 'positive']
+    # classes = ['negative', 'positive', 'resistant']
+    classes = ['negative', 'positive']
 
     # Plot confusion matrix
     plt.figure(figsize=(8, 6))
@@ -243,5 +294,5 @@ if __name__ == "__main__":
     plt.title('Confusion Matrix')
     plt.xlabel('Predicted')
     plt.ylabel('True')
-    plt.savefig(os.path.join(info()['save_dir'], 'test_conf_mat.png'))
+    plt.savefig(os.path.join(info()['save_dir'], 'test_conf_mat_' + ''.join(map(str, labels_to_keep)) + '_classes.png'))
     # plt.show()
