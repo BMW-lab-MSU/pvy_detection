@@ -8,16 +8,16 @@ if __name__ == "__main__":
 
     idx_test = [7, 15]
 
-    ticks = [0, 1, 2, 3, 4]
-    tick_labels = ['background', 'healthy', 'infected', 'resistant', 'other']
-    # tick_labels = ['background', 'healthy', 'infected', 'other']
+    ticks = [0, 1, 2]   # ticks = [0, 1, 2, 3, 4]
+    # tick_labels = ['background', 'healthy', 'infected', 'resistant', 'other']
+    tick_labels = ['healthy', 'infected', 'other']
 
-    labels_to_keep = [0, 3, 4, 6]   # 0 bck, 3 neg, 4 pos, 6 res
+    # labels_to_keep = [0, 3, 4, 6]   # 0 bck, 3 neg, 4 pos, 6 res
     # labels_to_keep = [0, 3, 4]  # 0 bck, 3 neg, 4 pos, 6 res
     # labels_to_keep = [3, 4, 6]  # 0 bck, 3 neg, 4 pos, 6 res
-    # labels_to_keep = [3, 4]  # 0 bck, 3 neg, 4 pos, 6 res
+    labels_to_keep = [3, 4]  # 0 bck, 3 neg, 4 pos, 6 res
 
-    model = keras.models.load_model(os.path.join(info()['save_dir'], 'model_4_classes.keras'))
+    model = keras.models.load_model(os.path.join(info()['save_dir'], 'model_34_classes_cross.keras'))
 
     for i in idx_test:
         all_files = glob.glob(os.path.join(info()['raw_data'], '*.hdr'))
@@ -87,3 +87,4 @@ if __name__ == "__main__":
                          + ''.join(map(str, labels_to_keep)) + '.png'))
         plt.close()
 
+        del img, predicted_classes, true_classes, pp, tt
