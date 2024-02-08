@@ -12,7 +12,7 @@ def process_file(dir_name, data):
     partial_processed = partial(save_data_by_pixels, file_info=data, save_loc=dir_name)
 
     # use process instead of threads, else the program will run out of memory
-    with ProcessPoolExecutor(max_workers=8) as executor:
+    with ProcessPoolExecutor(max_workers=1) as executor:
         executor.map(partial_processed, idx)
 
 

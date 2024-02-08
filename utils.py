@@ -1,4 +1,5 @@
 import os
+import random
 import re
 import spectral as sp
 import numpy as np
@@ -39,10 +40,10 @@ def concatenate_data_label(file_num, file_info):
 
     print(f"Processing file: {file_raw.split('/')[-1]}")
     img0 = read_hyper(file_raw)[0]
-    print(f"Processing file: {file_first.split('/')[-1]}")
+    # print(f"Processing file: {file_first.split('/')[-1]}")
     img1 = read_hyper(file_first)[0]
     img1 = img1[:, :, idx]
-    print(f"Processing file: {file_second.split('/')[-1]}")
+    # print(f"Processing file: {file_second.split('/')[-1]}")
     img2 = read_hyper(file_second)[0]
     img2 = img2[:, :, idx]
 
@@ -85,27 +86,55 @@ def save_data_by_pixels(file_num, file_info, save_loc):
     file_raw = file_info[0][file_num]
     filename_base = 'Image_' + re.search(r'(\d+)-', file_raw.split('/')[-1]).group(1)
 
-    for count in range(len(label)):
-        filename = filename_base + '_Pixel_' + str(count)
+    # keep same amount of the labels as of the infected
+    idx_0 = np.where(label == 0)[0]
+    idx_3 = np.where(label == 3)[0]
+    idx_4 = np.where(label == 4)[0]
+    idx_6 = np.where(label == 6)[0]
+
+    idx_counts = np.array([len(idx_0), len(idx_3), len(idx_4), len(idx_6)])
+    zero_loc = np.where(idx_counts == 0)[0]
+    no_zero_min = np.min(np.delete(idx_counts, zero_loc))
+
+    random.seed(10)
+    idx_0 = random.sample(list(idx_0), no_zero_min) if len(idx_0) > no_zero_min \
+        else random.sample(list(idx_0), len(idx_0))
+    idx_3 = random.sample(list(idx_3), no_zero_min) if len(idx_3) > no_zero_min \
+        else random.sample(list(idx_3), len(idx_3))
+    idx_4 = random.sample(list(idx_4), no_zero_min) if len(idx_4) > no_zero_min \
+        else random.sample(list(idx_4), len(idx_4))
+    idx_6 = random.sample(list(idx_6), no_zero_min) if len(idx_6) > no_zero_min \
+        else random.sample(list(idx_6), len(idx_6))
+
+    list_label_idx = [idx_0, idx_3, idx_4, idx_6]
+    non_empty_list = [np.array(arr) for arr in list_label_idx if len(arr) > 0]
+
+    if non_empty_list:
+        label_idx = np.concatenate(non_empty_list)
+    else:
+        label_idx = np.array([])
+
+    for idx in label_idx:
+        filename = filename_base + '_Pixel_' + str(idx)
         save_name = []
-        if label[count] == 0:  # background
+        if label[idx] == 0:  # background
             class_dir_loc = os.path.join(save_loc, 'background')
             save_name = os.path.join(class_dir_loc, filename + '.npy')
 
-        if label[count] == 3:  # healthy
+        if label[idx] == 3:  # healthy
             class_dir_loc = os.path.join(save_loc, 'healthy')
             save_name = os.path.join(class_dir_loc, filename + '.npy')
 
-        if label[count] == 4:  # infected
+        if label[idx] == 4:  # infected
             class_dir_loc = os.path.join(save_loc, 'infected')
             save_name = os.path.join(class_dir_loc, filename + '.npy')
 
-        if label[count] == 6:  # resistant
+        if label[idx] == 6:  # resistant
             class_dir_loc = os.path.join(save_loc, 'resistant')
             save_name = os.path.join(class_dir_loc, filename + '.npy')
 
-        print(f'Saving file :  {save_name}')
-        np.save(save_name, img[count, :])
+        # print(f'Saving file :  {save_name}')
+        np.save(save_name, img[idx, :])
 
 
 # decode the run length encoding to get the mask
