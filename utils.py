@@ -96,6 +96,9 @@ def save_data_by_pixels(file_num, file_info, save_loc):
     zero_loc = np.where(idx_counts == 0)[0]
     no_zero_min = np.min(np.delete(idx_counts, zero_loc))
 
+    if zero_loc.size > 0 and no_zero_min > 10000:
+        no_zero_min = 10000
+
     random.seed(10)
     idx_0 = random.sample(list(idx_0), no_zero_min) if len(idx_0) > no_zero_min \
         else random.sample(list(idx_0), len(idx_0))
