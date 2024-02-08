@@ -12,7 +12,7 @@ def process_file(dir_name, data):
     partial_processed = partial(save_data_by_pixels, file_info=data, save_loc=dir_name)
 
     # use process instead of threads, else the program will run out of memory
-    with ProcessPoolExecutor(max_workers=1) as executor:
+    with ProcessPoolExecutor(max_workers=8) as executor:
         executor.map(partial_processed, idx)
 
 
@@ -70,16 +70,6 @@ def get_data(dir_raw, dir_first, dir_second, dir_labels, dir_save):
 
     print('---------- Extracting Testing Data Files ----------')
     process_file(dir_test, test_files)
-
-    # # wavelengths should be the same for all the images collected by the same camera
-    # wvl = read_hyper(train_files[0])[1]
-    #
-    # print('---------- Saving other relevant Data ----------')
-    # save_loc = os.path.join(save_directory, 'other_data')
-    # if not os.path.exists(save_loc):
-    #     os.makedirs(save_loc)
-    # save_loc = os.path.join(save_loc, 'other_data.npz')  # .npz is used to save multiple variables
-    # np.savez(save_loc, train_files=train_files, val_files=val_files, test_files=test_files, wvl=wvl)
 
 
 if __name__ == "__main__":
