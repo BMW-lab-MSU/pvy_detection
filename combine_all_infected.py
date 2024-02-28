@@ -13,11 +13,11 @@ from sklearn.utils import class_weight
 from sklearn.metrics import confusion_matrix
 
 if __name__ == "__main__":
-    all_files = glob.glob(os.path.join(info()['raw_data'], '*.hdr'))
+    all_files = glob.glob(os.path.join(info()['general_dir'], 'smoothed_clipped_normalized', '*.hdr'))
     all_files.sort()
-    all_first = glob.glob(os.path.join(info()['general_dir'], 'first_derivative', '*.hdr'))
+    all_first = glob.glob(os.path.join(info()['general_dir'], 'smoothed_clipped_normalized_first_derivative', '*.hdr'))
     all_first.sort()
-    all_second = glob.glob(os.path.join(info()['general_dir'], 'second_derivative', '*.hdr'))
+    all_second = glob.glob(os.path.join(info()['general_dir'], 'smoothed_clipped_normalized_second_derivative', '*.hdr'))
     all_second.sort()
     all_labels = glob.glob(os.path.join(info()['save_dir'], 'labels', '*.npy'))
     all_labels.sort()
@@ -25,56 +25,58 @@ if __name__ == "__main__":
     idx_train = [3, 11, 12, 16, 21, 25, 28, 29]
     idx_val = [6, 20]
     idx_test = [7, 15]
-    idx = list(range(10, 175)) + list(range(185, 244))
+    # idx = list(range(10, 175)) + list(range(185, 244))
 
-    # labels_to_keep = [0, 3, 4, 6]   # 0 bck, 3 neg, 4 pos, 6 res
+    labels_to_keep = [0, 3, 4, 6]   # 0 bck, 3 neg, 4 pos, 6 res
     # labels_to_keep = [0, 3, 4]  # 0 bck, 3 neg, 4 pos, 6 res
     # labels_to_keep = [3, 4, 6]  # 0 bck, 3 neg, 4 pos, 6 res
-    labels_to_keep = [3, 4]  # 0 bck, 3 neg, 4 pos, 6 res
+    # labels_to_keep = [3, 4]  # 0 bck, 3 neg, 4 pos, 6 res
 
     # TRAINING DATA ACCUMULATION
     train_labels = np.empty((0, len(labels_to_keep)))
-    train_data = np.empty((0, 224 * 3))
+    # train_data = np.empty((0, 224 * 3))
+    train_data = np.empty((0, 223 * 3))
     for i in idx_train:
         print(f"Processing Train Data, Index number: {i}, filename: {all_files[i]}")
         img0 = read_hyper(all_files[i])[0]
         img1 = read_hyper((all_first[i]))[0]
-        img1 = img1[:, :, idx]
+        # img1 = img1[:, :, idx]
         img2 = read_hyper(all_second[i])[0]
-        img2 = img2[:, :, idx]
+        # img2 = img2[:, :, idx]
         img = np.concatenate((img0, img1, img2), axis=2)
         del img0, img1, img2
         label = np.load(all_labels[i]).flatten()
         to_keep_idx = np.where(np.isin(label, labels_to_keep))[0]
         y_val = to_categorical(label[to_keep_idx])
         y_val = y_val[:, labels_to_keep]
-        img = img.reshape((1800000, 224 * 3))
+        # img = img.reshape((1800000, 224 * 3))
+        img = img.reshape((1800000, 223 * 3))
         img = img[to_keep_idx, :]
 
         # keep same amount of 0, 3, and 6 (should be 0, 1, 3) from training data (4 is infected)
         idx_train_0 = np.where(y_val[:, 0] == 1)[0]
         idx_train_1 = np.where(y_val[:, 1] == 1)[0]
-        # idx_train_2 = np.where(y_val[:, 2] == 1)[0]
-        # idx_train_3 = np.where(y_val[:, 3] == 1)[0]
+        idx_train_2 = np.where(y_val[:, 2] == 1)[0]
+        idx_train_3 = np.where(y_val[:, 3] == 1)[0]
 
-        # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2), len(idx_train_3)])
+        min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2), len(idx_train_3)])
         # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2)])
-        min_value = np.min([len(idx_train_0), len(idx_train_1)])
+        # min_value = np.min([len(idx_train_0), len(idx_train_1)])
 
         if min_value > 0:
             random.seed(10)
             idx_0 = random.sample(list(idx_train_0), min_value)
-            # idx_1 = random.sample(list(idx_train_1), min_value)
-            # idx_2 = random.sample(list(idx_train_2), min_value)
-            # idx_3 = random.sample(list(idx_train_3), min_value)
+            idx_1 = random.sample(list(idx_train_1), min_value)
+            idx_2 = random.sample(list(idx_train_2), min_value)
+            idx_3 = random.sample(list(idx_train_3), min_value)
 
-            # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
+            y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
             # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2])
             # y_train_idx = np.concatenate([idx_0, idx_train_1, idx_2])
-            y_train_idx = np.concatenate([idx_0, idx_train_1])
+            # y_train_idx = np.concatenate([idx_0, idx_train_1])
         else:
-            # y_train_idx = idx_train_2
-            y_train_idx = idx_train_1
+            y_train_idx = idx_train_2
+            # y_train_idx = idx_train_1
 
         y_train = y_val[y_train_idx]
         x_train = img[y_train_idx, :]
@@ -85,47 +87,49 @@ if __name__ == "__main__":
 
     # VALIDATION DATA ACCUMULATION
     val_labels = np.empty((0, len(labels_to_keep)))
-    val_data = np.empty((0, 224 * 3))
+    # val_data = np.empty((0, 224 * 3))
+    val_data = np.empty((0, 223 * 3))
     for i in idx_val:
         print(f"Processing Validation Data, Index number: {i}, filename: {all_files[i]}")
         img0 = read_hyper(all_files[i])[0]
         img1 = read_hyper((all_first[i]))[0]
-        img1 = img1[:, :, idx]
+        # img1 = img1[:, :, idx]
         img2 = read_hyper(all_second[i])[0]
-        img2 = img2[:, :, idx]
+        # img2 = img2[:, :, idx]
         img = np.concatenate((img0, img1, img2), axis=2)
         del img0, img1, img2
         label = np.load(all_labels[i]).flatten()
         to_keep_idx = np.where(np.isin(label, labels_to_keep))[0]
         y_val = to_categorical(label[to_keep_idx])
         y_val = y_val[:, labels_to_keep]
-        img = img.reshape((1800000, 224 * 3))
+        # img = img.reshape((1800000, 224 * 3))
+        img = img.reshape((1800000, 223 * 3))
         img = img[to_keep_idx, :]
 
         # keep same amount of 0, 3, and 6 (should be 0, 1, 3) from training data (4 is infected)
         idx_train_0 = np.where(y_val[:, 0] == 1)[0]
         idx_train_1 = np.where(y_val[:, 1] == 1)[0]
-        # idx_train_2 = np.where(y_val[:, 2] == 1)[0]
-        # idx_train_3 = np.where(y_val[:, 3] == 1)[0]
+        idx_train_2 = np.where(y_val[:, 2] == 1)[0]
+        idx_train_3 = np.where(y_val[:, 3] == 1)[0]
 
-        # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2), len(idx_train_3)])
+        min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2), len(idx_train_3)])
         # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2)])
-        min_value = np.min([len(idx_train_0), len(idx_train_1)])
+        # min_value = np.min([len(idx_train_0), len(idx_train_1)])
 
         if min_value > 0:
             random.seed(10)
             idx_0 = random.sample(list(idx_train_0), min_value)
-            # idx_1 = random.sample(list(idx_train_1), min_value)
-            # idx_2 = random.sample(list(idx_train_2), min_value)
-            # idx_3 = random.sample(list(idx_train_3), min_value)
+            idx_1 = random.sample(list(idx_train_1), min_value)
+            idx_2 = random.sample(list(idx_train_2), min_value)
+            idx_3 = random.sample(list(idx_train_3), min_value)
 
-            # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
+            y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
             # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2])
             # y_train_idx = np.concatenate([idx_0, idx_train_1, idx_2])
-            y_train_idx = np.concatenate([idx_0, idx_train_1])
+            # y_train_idx = np.concatenate([idx_0, idx_train_1])
         else:
-            # y_train_idx = idx_train_2
-            y_train_idx = idx_train_1
+            y_train_idx = idx_train_2
+            # y_train_idx = idx_train_1
 
         y_train = y_val[y_train_idx]
         x_train = img[y_train_idx, :]
@@ -139,7 +143,8 @@ if __name__ == "__main__":
 
     num_labels = len(labels_to_keep)
 
-    input_size = 224 * 3
+    # input_size = 224 * 3
+    input_size = 223 * 3
     batch_size = 128
     hidden_units = 256
     dropout = 0.5  # Slightly increased dropout for regularization
@@ -222,49 +227,53 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig(os.path.join(info()['save_dir'], 'train_val_loss_acc_' + ''.join(map(str, labels_to_keep)) + '_classes.png'))
     # plt.show()
+    plt.close()
 
     # TEST DATA ACCUMULATION
     test_labels = np.empty((0, len(labels_to_keep)))
-    test_data = np.empty((0, 224 * 3))
+    # test_data = np.empty((0, 224 * 3))
+    test_data = np.empty((0, 223 * 3))
     for i in idx_test:
         print(f"Processing Test Data, Index number: {i}, filename: {all_files[i]}")
         img0 = read_hyper(all_files[i])[0]
         img1 = read_hyper((all_first[i]))[0]
-        img1 = img1[:, :, idx]
+        # img1 = img1[:, :, idx]
         img2 = read_hyper(all_second[i])[0]
-        img2 = img2[:, :, idx]
+        # img2 = img2[:, :, idx]
         img = np.concatenate((img0, img1, img2), axis=2)
         del img0, img1, img2
         label = np.load(all_labels[i]).flatten()
         to_keep_idx = np.where(np.isin(label, labels_to_keep))[0]
         y_val = to_categorical(label[to_keep_idx])
         y_val = y_val[:, labels_to_keep]
-        img = img.reshape((1800000, 224 * 3))
+        # img = img.reshape((1800000, 224 * 3))
+        img = img.reshape((1800000, 223 * 3))
         img = img[to_keep_idx, :]
 
         # keep same amount of 0, 3, and 6 (should be 0, 1, 3) from training data (4 is infected)
         idx_train_0 = np.where(y_val[:, 0] == 1)[0]
         idx_train_1 = np.where(y_val[:, 1] == 1)[0]
-        # idx_train_2 = np.where(y_val[:, 2] == 1)[0]
-        # idx_train_3 = np.where(y_val[:, 3] == 1)[0]
+        idx_train_2 = np.where(y_val[:, 2] == 1)[0]
+        idx_train_3 = np.where(y_val[:, 3] == 1)[0]
 
-        # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2), len(idx_train_3)])
+        min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2), len(idx_train_3)])
         # min_value = np.min([len(idx_train_0), len(idx_train_1), len(idx_train_2)])
-        min_value = np.min([len(idx_train_0), len(idx_train_1)])
+        # min_value = np.min([len(idx_train_0), len(idx_train_1)])
 
         if min_value > 0:
             random.seed(10)
             idx_0 = random.sample(list(idx_train_0), min_value)
-            # idx_1 = random.sample(list(idx_train_1), min_value)
-            # idx_2 = random.sample(list(idx_train_2), min_value)
-            # idx_3 = random.sample(list(idx_train_3), min_value)
+            idx_1 = random.sample(list(idx_train_1), min_value)
+            idx_2 = random.sample(list(idx_train_2), min_value)
+            idx_3 = random.sample(list(idx_train_3), min_value)
 
-            # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
+            y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2, idx_3])
             # y_train_idx = np.concatenate([idx_0, idx_1, idx_train_2])
             # y_train_idx = np.concatenate([idx_0, idx_train_1, idx_2])
-            y_train_idx = np.concatenate([idx_0, idx_train_1])
+            # y_train_idx = np.concatenate([idx_0, idx_train_1])
         else:
-            y_train_idx = idx_train_1
+            y_train_idx = idx_train_2
+            # y_train_idx = idx_train_1
 
         y_train = y_val[y_train_idx]
         x_train = img[y_train_idx, :]
@@ -283,10 +292,10 @@ if __name__ == "__main__":
     conf_matrix = confusion_matrix(true_classes, predicted_classes)
     print(conf_matrix)
 
-    # classes = ['background', 'negative', 'positive', 'resistant negative']
+    classes = ['background', 'negative', 'positive', 'resistant negative']
     # classes = ['background', 'negative', 'positive']
     # classes = ['negative', 'positive', 'resistant']
-    classes = ['negative', 'positive']
+    # classes = ['negative', 'positive']
 
     # Plot confusion matrix
     plt.figure(figsize=(8, 6))
@@ -296,3 +305,4 @@ if __name__ == "__main__":
     plt.ylabel('True')
     plt.savefig(os.path.join(info()['save_dir'], 'test_conf_mat_' + ''.join(map(str, labels_to_keep)) + '_classes.png'))
     # plt.show()
+    plt.close()
