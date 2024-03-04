@@ -100,6 +100,29 @@ if __name__ == "__main__":
         _, accuracy = model.evaluate(test_data, test_labels, verbose=2)
         return -accuracy    # minimize negative accuracy
 
+    #  bounded region of the parameter space
+    # pbounds = {
+    #     'num_units': (16, 256),
+    #     'num_layers': (1, 5),
+    #     'learning_rate': (0.0001, 0.01),
+    #     'batch_size': (4, 8),
+    # }
+    # optimizer = BayesianOptimization(
+    #     f=create_model,
+    #     pbounds=pbounds,
+    #     random_state=1,
+    #     verbose=2,
+    # )
+    # logger = JSONLogger(path=os.path.join(info()['save_dir'], 'logs.log'))
+    # optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
+    # optimizer.maximize(
+    #     init_points=10,
+    #     n_iter=40,
+    # )
+    # print(optimizer.max)
+    # for i, res in enumerate(optimizer.res):
+    #     print("Iteration {}: \n\t{}".format(i, res))
+
     def optimized_model(num_units, num_layers, learning_rate, batch_size):
         model = Sequential()
         model.add(Dense(num_units, input_dim=input_size, activation='relu'))
