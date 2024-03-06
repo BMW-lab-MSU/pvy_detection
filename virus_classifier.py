@@ -1,0 +1,208 @@
+import xml.etree.ElementTree as ET
+import glob
+import numpy as np
+import keras
+import random
+import cv2
+from utils import *
+import seaborn as sns
+import tensorflow as tf
+from scipy.signal import convolve
+from bayes_opt import BayesianOptimization
+from bayes_opt.logger import JSONLogger
+from bayes_opt.event import Events
+from sklearn.utils import class_weight
+import matplotlib.pyplot as plt
+from concurrent.futures import ProcessPoolExecutor
+from keras.datasets import mnist
+from keras.models import Sequential
+from keras.optimizers import Adam
+from keras.layers import Dense, Activation, Dropout, BatchNormalization, LeakyReLU
+from keras.utils import to_categorical, plot_model
+from keras.regularizers import l2
+from sklearn.metrics import confusion_matrix
+
+
+def get_potato_not_potato(ndvi_files_sorted, label_files_sorted):
+    threshold_to_clear_shadow = 0.8
+    kernel = np.ones((3, 3), np.uint8)
+
+    masks = np.zeros((2000 * 900, len(label_files_sorted)))
+
+    for count in range(len(ndvi_files_sorted)):
+        data = np.squeeze(read_hyper(ndvi_files_sorted[count])[0])
+        data[data <= threshold_to_clear_shadow] = 0
+        data_eroded = cv2.erode(data, kernel, iterations=1).flatten()  # this contains weeds and potato foliage
+
+        label = np.load(label_files_sorted[count]).flatten()
+        foliage_with_weeds = np.logical_or(data_eroded, label)
+        true_indices = np.where(foliage_with_weeds)[0]
+
+        # find the number of weeds per image
+        not_potato_indices = np.where(label[true_indices] == 0)[0]
+        potato_indices = np.where(label != 0)[0]
+        combined_indices = np.hstack((potato_indices, not_potato_indices))
+
+        label = label[combined_indices]
+        label[label != 0] = 1  # change the label to 1 for potatoes
+
+        masks[combined_indices, count] = label
+
+    return masks
+
+
+def process_and_generate_data(all_labels, raw_files, all_first, all_second, save_name):
+    random.seed(10)
+    idx = list(range(len(all_labels)))
+    random.shuffle(idx)
+    idx_test = idx[15:]
+    idx_val = idx[11:15]
+
+    train_data = np.empty((0, 223 * 3))
+    train_labels = np.empty(0)  # there will be 2 labels, 0 and 1
+
+    val_data = train_data
+    val_labels = train_labels
+
+    test_data = train_data
+    test_labels = train_labels
+
+    kernel_size = 10
+    kernel1 = np.ones((kernel_size, kernel_size))
+    kernel2 = np.ones((kernel_size, kernel_size, 1))
+    labels_to_keep = [299, 300, 399, 400, 599, 600]  # 3 (healthy), 4 (infected), 6 (resistant) * 10
+
+    for num in range(len(all_labels)):
+        print(f"Working on Image ", num)
+        img0 = read_hyper(raw_files[num])[0]
+        img1 = read_hyper(all_first[num])[0]
+        img2 = read_hyper(all_second[num])[0]
+        img = np.concatenate((img0, img1, img2), axis=2)
+        del img0, img1, img2
+        label_whole = np.load(all_labels[num])
+        down_sampled_label = convolve(label_whole, kernel1, mode='valid')[::kernel_size,
+                             ::kernel_size].flatten().astype(int)
+        down_sampled_img = convolve(img, kernel2, mode='valid')[::kernel_size, ::kernel_size].reshape(
+            (200 * 90, 223 * 3))
+        del img
+        mask = masked_potatoes[:, num].reshape(2000, 900)
+        down_sampled_mask = convolve(mask, kernel1, mode='valid')[::kernel_size, ::kernel_size].flatten().astype(int)
+
+        to_keep_idx = np.where(np.isin(down_sampled_label, labels_to_keep))[0]  # indices with 3, 4, and 6
+        mask_indices = np.where((down_sampled_mask == 99) | (down_sampled_mask == 100))[0]
+
+        overlapped_indices = to_keep_idx[np.where(np.isin(to_keep_idx, mask_indices))[0]]
+        idx_infected = overlapped_indices[
+            np.where((down_sampled_label[overlapped_indices] == 399) | (down_sampled_label[overlapped_indices] == 400))[
+                0]]
+
+        idx_healthy = overlapped_indices[np.where(
+            (down_sampled_label[overlapped_indices] == 299) | (down_sampled_label[overlapped_indices] == 300) | (
+                        down_sampled_label[overlapped_indices] == 599) | (
+                        down_sampled_label[overlapped_indices] == 600))[0]]
+
+        random.seed(10)
+        idx_healthy = random.sample(list(idx_healthy), 1000)  # randomly takng 1000 pixels
+        combined_indices = np.hstack((idx_infected, idx_healthy))
+        random.seed(10)
+        np.random.shuffle(combined_indices)
+        label_selected = down_sampled_label[combined_indices]
+        label_selected[(label_selected == 399) | (label_selected == 400)] = 1
+        label_selected[label_selected != 1] = 0
+        data_selected = down_sampled_img[combined_indices, :]
+        del down_sampled_img
+
+        if num in idx_val:
+            val_data = np.concatenate((val_data, data_selected), axis=0)
+            val_labels = np.concatenate((val_labels, label_selected), axis=0)
+        elif num in idx_test:
+            test_data = np.concatenate((test_data, data_selected), axis=0)
+            test_labels = np.concatenate((test_labels, label_selected), axis=0)
+        else:
+            train_data = np.concatenate((train_data, data_selected), axis=0)
+            train_labels = np.concatenate((train_labels, label_selected), axis=0)
+
+    np.savez(save_name, train_data=train_data, train_labels=train_labels, val_data=val_data,
+             val_labels=val_labels, test_data=test_data, test_labels=test_labels)
+
+    return train_data, train_labels, val_data, val_labels, test_data, test_labels
+
+
+if __name__ == "__main__":
+    ndvi_files = glob.glob(os.path.join(info()['general_dir'], 'smoothed_clipped_normalized_ndvi', '*.hdr'))
+    ndvi_files.sort()
+    labels = glob.glob(os.path.join(info()['save_dir'], 'labels', '*.npy'))
+    labels.sort()
+    raw = glob.glob(os.path.join(info()['general_dir'], 'smoothed_clipped_normalized', '*.hdr'))
+    raw.sort()
+    first_der = glob.glob(os.path.join(info()['general_dir'], 'smoothed_clipped_normalized_first_derivative', '*.hdr'))
+    first_der.sort()
+    second_der = glob.glob(
+        os.path.join(info()['general_dir'], 'smoothed_clipped_normalized_second_derivative', '*.hdr'))
+    second_der.sort()
+
+    mask_save_name = os.path.join(info()['save_dir'], 'masked_potato.npy')
+    if os.path.exists(mask_save_name):
+        masked_potatoes = np.load(mask_save_name)
+    else:
+        masked_potatoes = get_potato_not_potato(ndvi_files, labels)
+        np.save(mask_save_name, masked_potatoes)
+
+    data_save_name = os.path.join(info()['save_dir'], 'virus_classifier_data.npz')
+    if os.path.exists(data_save_name):
+        data = np.load(data_save_name)
+        data_train = data['train_data']
+        labels_train = data['train_labels']
+        data_val = data['val_data']
+        labels_val = data['val_labels']
+        data_test = data['test_data']
+        labels_test = data['test_labels']
+    else:
+        [data_train, labels_train, data_val, labels_val, data_test, labels_test] = process_and_generate_data(labels, raw, first_der, second_der, data_save_name)
+
+    input_size = data_train.shape[1]
+    # Calculate class weights for imbalanced dataset
+    class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(labels_train), y=labels_train)
+    class_weights_dict = {i: class_weights[i] for i in range(len(class_weights))}   # converting to dictionary
+
+    # create the model to tune
+    def create_model(num_units, num_layers, learning_rate, batch_size):
+        num_units = round(num_units)
+        num_layers = round(num_layers)
+        batch_size = 2 ** round(batch_size)
+
+        model = Sequential()
+        model.add(Dense(num_units, input_dim=input_size, activation='relu'))
+        for _ in range(num_layers - 1):
+            model.add(Dropout(0.2))
+            model.add(Dense(num_units, activation='relu'))
+        model.add(Dense(1, activation='sigmoid'))
+        opt = Adam(learning_rate=learning_rate)
+        model.compile(optimizer=opt, loss='binary_crossentropy', metrics=['accuracy'])
+        model.fit(data_train, labels_train, epochs=20, batch_size=batch_size, verbose=2,
+                  validation_data=(data_val, labels_val), shuffle=True, class_weight=class_weights_dict)
+        _, accuracy = model.evaluate(data_test, labels_test, verbose=2)
+        return accuracy  # minimize negative accuracy
+
+    # bounded region of the parameter space
+    pbounds = {
+        'num_units': (16, 512),
+        'num_layers': (1, 6),
+        'learning_rate': (0.0001, 0.1),
+        'batch_size': (4, 8),
+    }
+    optimizer = BayesianOptimization(
+        f=create_model,
+        pbounds=pbounds,
+        random_state=1,
+        verbose=2,
+    )
+    logger = JSONLogger(path=os.path.join(info()['save_dir'], 'virus_classifier_logs.json'))
+    optimizer.subscribe(Events.OPTIMIZATION_STEP, logger)
+    optimizer.maximize(
+        init_points=5,
+        n_iter=20,
+    )
+    print(optimizer.max)
+    for i, res in enumerate(optimizer.res):
+        print("Iteration {}: \n\t{}".format(i, res))
