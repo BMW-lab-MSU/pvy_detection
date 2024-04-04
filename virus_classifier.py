@@ -8,6 +8,7 @@ from utils import *
 import seaborn as sns
 import tensorflow as tf
 from scipy.signal import convolve
+from scipy.io import loadmat, savemat
 from bayes_opt import BayesianOptimization
 from bayes_opt.logger import JSONLogger
 from bayes_opt.event import Events
@@ -98,8 +99,26 @@ def process_and_generate_data(all_labels, raw_files, all_first, all_second, save
 
         idx_healthy = overlapped_indices[np.where(
             (down_sampled_label[overlapped_indices] == 299) | (down_sampled_label[overlapped_indices] == 300) | (
-                        down_sampled_label[overlapped_indices] == 599) | (
-                        down_sampled_label[overlapped_indices] == 600))[0]]
+                    down_sampled_label[overlapped_indices] == 599) | (
+                    down_sampled_label[overlapped_indices] == 600))[0]]
+
+        if save_data:
+            combined_indices = np.hstack((idx_infected, idx_healthy))
+            label_selected = down_sampled_label[combined_indices]
+            label_selected[(label_selected == 399) | (label_selected == 400)] = 1
+            label_selected[label_selected != 1] = 0
+            data_selected = down_sampled_img[combined_indices, :]
+            del down_sampled_img
+            img_num = all_labels[num].split('_')[-1].split('-')[0]
+            file_name_py = os.path.join(info()['save_dir'],
+                                        'compressed_virus_yes_no_img_' + str(img_num) + '_count_' + str(num) + '.npz')
+            file_name_mat = os.path.join(info()['save_dir'],
+                                         'compressed_virus_yes_no_img_' + str(img_num) + '_count_' + str(num) + '.mat')
+            np.savez(file_name_py, combined_indices=combined_indices, label_selected=label_selected,
+                     data_selected=data_selected)
+            savemat(file_name_mat, {'combined_indices': combined_indices, 'label_selected': label_selected,
+                                    'data_selected': data_selected})
+            continue
 
         random.seed(10)
         idx_healthy = random.sample(list(idx_healthy), 1000)  # randomly takng 1000 pixels
@@ -148,8 +167,10 @@ if __name__ == "__main__":
         masked_potatoes = get_potato_not_potato(ndvi_files, labels)
         np.save(mask_save_name, masked_potatoes)
 
+    save_data = 1
+
     data_save_name = os.path.join(info()['save_dir'], 'virus_classifier_data.npz')
-    if os.path.exists(data_save_name):
+    if os.path.exists(data_save_name) and not save_data:
         data = np.load(data_save_name)
         data_train = data['train_data']
         labels_train = data['train_labels']
@@ -158,12 +179,17 @@ if __name__ == "__main__":
         data_test = data['test_data']
         labels_test = data['test_labels']
     else:
-        [data_train, labels_train, data_val, labels_val, data_test, labels_test] = process_and_generate_data(labels, raw, first_der, second_der, data_save_name)
+        [data_train, labels_train, data_val, labels_val, data_test, labels_test] = process_and_generate_data(labels,
+                                                                                                             raw,
+                                                                                                             first_der,
+                                                                                                             second_der,
+                                                                                                             data_save_name)
 
     input_size = data_train.shape[1]
     # Calculate class weights for imbalanced dataset
     class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(labels_train), y=labels_train)
-    class_weights_dict = {i: class_weights[i] for i in range(len(class_weights))}   # converting to dictionary
+    class_weights_dict = {i: class_weights[i] for i in range(len(class_weights))}  # converting to dictionary
+
 
     # create the model to tune
     def create_model(num_units, num_layers, learning_rate, batch_size):
@@ -183,6 +209,7 @@ if __name__ == "__main__":
                   validation_data=(data_val, labels_val), shuffle=True, class_weight=class_weights_dict)
         _, accuracy = model.evaluate(data_test, labels_test, verbose=2)
         return accuracy  # minimize negative accuracy
+
 
     # # bounded region of the parameter space
     # pbounds = {
@@ -225,6 +252,7 @@ if __name__ == "__main__":
         model.fit(data_train, labels_train, epochs=20, batch_size=batch_size, verbose=2,
                   validation_data=(data_val, labels_val), shuffle=True, class_weight=class_weights_dict)
         return model
+
 
     # {"target": 0.7714561223983765, "params": {"batch_size": 5.6680880188102964, "learning_rate":
     # 0.0720604168948716, "num_layers": 1.0005718740867244, "num_units": 165.95695602539251}, "datetime": {
@@ -274,8 +302,8 @@ if __name__ == "__main__":
 
         idx_healthy = overlapped_indices[np.where(
             (down_sampled_label[overlapped_indices] == 299) | (down_sampled_label[overlapped_indices] == 300) | (
-                        down_sampled_label[overlapped_indices] == 599) | (
-                        down_sampled_label[overlapped_indices] == 600))[0]]
+                    down_sampled_label[overlapped_indices] == 599) | (
+                    down_sampled_label[overlapped_indices] == 600))[0]]
 
         # random.seed(10)
         # idx_healthy = random.sample(list(idx_healthy), 1000)  # randomly takng 1000 pixels
