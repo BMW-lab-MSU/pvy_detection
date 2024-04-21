@@ -43,8 +43,8 @@ if __name__ == "__main__":
 
         # wv[0] = 387.12, wv[288] = 998.75
         [img_hyper, wv_hyper] = read_hyper(hyper_file)
-        img = img_hyper[:, :, : 289].reshape(-1, 289)
-        wv = wv_hyper[: 289]
+        img = img_hyper[:, :, : 275].reshape(-1, 275)
+        wv = wv_hyper[: 275]
 
         for wave_data_count in range(0, int(len(transposed_data) / 2)):
             wave_col = list(filter(lambda x: x is not None, transposed_data[wave_data_count * 2]))
@@ -57,6 +57,6 @@ if __name__ == "__main__":
             spl = CubicSpline(wave_col, data_col)
             multi_data = spl(wv)
 
-            img_new = np.matmul(img, multi_data)
+            img_new = np.matmul(img, multi_data) / sum(multi_data)
             filename = os.path.join(multi_data_folder, 'img_' + img_num + '_center_frequency_' + center_frequency + '.npy')
             np.save(filename, img_new)
