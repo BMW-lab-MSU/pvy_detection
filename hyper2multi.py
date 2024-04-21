@@ -1,28 +1,7 @@
-import xml.etree.ElementTree as ET
 import glob
-import re
-import numpy as np
-import keras
-import random
-import cv2
 import openpyxl
 from utils import *
-import seaborn as sns
-import tensorflow as tf
-from bayes_opt import BayesianOptimization
-from bayes_opt.logger import JSONLogger
-from bayes_opt.event import Events
-import matplotlib.pyplot as plt
-from concurrent.futures import ProcessPoolExecutor
-from scipy.io import loadmat, savemat
 from scipy.interpolate import CubicSpline
-from keras.datasets import mnist
-from keras.models import Sequential
-from keras.optimizers import Adam
-from keras.layers import Dense, Activation, Dropout, BatchNormalization, LeakyReLU
-from keras.utils import to_categorical, plot_model
-from keras.regularizers import l2
-from sklearn.metrics import confusion_matrix
 
 if __name__ == "__main__":
     reflectance_files = glob.glob(os.path.join(info()['general_dir'], 'raw_radiance_reflectance', '*.hdr'))
