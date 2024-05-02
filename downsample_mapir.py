@@ -1,4 +1,6 @@
 import glob
+
+import numpy as np
 import pandas as pd
 from scipy.io import savemat
 from scipy.signal import convolve
@@ -58,7 +60,13 @@ if __name__ == "__main__":
                                np.load(multi_905[img_count]).reshape((2000, 900))), axis=2)
 
         down_sampled_img = convolve(multi_data, kernel, mode='valid')[::kernel_size, ::kernel_size].reshape(18000, 6)
-        data = down_sampled_img[roi_pixel, :]
+
+        data = np.empty((18000, down_sampled_img.shape[1]))
+        for band in range(0, down_sampled_img.shape[1]):
+            tmp_data = down_sampled_img[:, band]
+            data[:, band] = (tmp_data - tmp_data.min()) / (tmp_data.max() - tmp_data.min())
+
+        data = data[roi_pixel, :]
 
         if img_count in idx_val:
             valX = np.concatenate((valX, data), axis=0)
@@ -73,8 +81,8 @@ if __name__ == "__main__":
             trainY = np.concatenate((trainY, roi_label), axis=0)
             trainImg = np.concatenate((trainImg, roi_img), axis=0)
 
-    save_name_npz = os.path.join(info()['save_dir'], 'mapir_multi_data', 'downsampled_multi.npz')
-    save_name_mat = os.path.join(info()['save_dir'], 'mapir_multi_data', 'downsampled_multi.mat')
+    save_name_npz = os.path.join(info()['save_dir'], 'mapir_multi_data', 'norm_downsampled_multi.npz')
+    save_name_mat = os.path.join(info()['save_dir'], 'mapir_multi_data', 'norm_downsampled_multi.mat')
     np.savez(save_name_npz, trainX=trainX, trainY=trainY, trainImg=trainImg, valX=valX,
              valY=valY, valImg=valImg, testX=testX, testY=testY, testImg=testImg)
     savemat(save_name_mat, {'trainX': trainX, 'trainY': trainY, 'trainImg': trainImg, 'valX': valX,
