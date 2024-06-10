@@ -185,9 +185,12 @@ def label_correction():
 # store the filepaths and other required information
 def info():
     file_directory = {
-        'general_dir': '/media/SIDSSD/precisionag/Potatoes/MSU Flights/2023-07-12/data',
-        'raw_data': '/media/SIDSSD/precisionag/Potatoes/MSU Flights/2023-07-12/data/hyper_data_raw_band_removed',
-        'save_dir': '/media/SIDSSD/precisionag/Potatoes/MSU Flights/2023-07-12/data/extracted_data',
+        'general_dir': '/media/SIDSSD/precisionag/01__Big Projects/Precision Disease Management/Potato PVY '
+                       'Detection/MSU Flights/2023-07-12/data',
+        'raw_data': '/media/SIDSSD/precisionag/01__Big Projects/Precision Disease Management/Potato PVY Detection/MSU '
+                    'Flights/2023-07-12/data/hyper_data_raw_band_removed',
+        'save_dir': '/media/SIDSSD/precisionag/01__Big Projects/Precision Disease Management/Potato PVY Detection/MSU '
+                    'Flights/2023-07-12/data/extracted_data',
     }
 
     return file_directory
