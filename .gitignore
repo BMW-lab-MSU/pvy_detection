@@ -37,7 +37,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 #test code and output
-test.py
+test*
 *.out
 
 # Unit test / coverage reports
