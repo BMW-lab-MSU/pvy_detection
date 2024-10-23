@@ -8,6 +8,7 @@ import cv2
 import csv
 import pandas as pd
 import umap
+import joblib
 
 from utils import *
 import seaborn as sns
@@ -21,7 +22,7 @@ from matplotlib.colors import Normalize
 from concurrent.futures import ProcessPoolExecutor
 from scipy.io import loadmat, savemat
 from keras.datasets import mnist
-from keras.models import Sequential, Model
+from keras.models import Sequential, Model, load_model
 from keras.optimizers import Adam
 from keras.layers import Dense, Activation, Dropout, BatchNormalization, LeakyReLU, Input
 from keras.utils import to_categorical, plot_model
@@ -31,7 +32,8 @@ from sklearn.decomposition import IncrementalPCA, TruncatedSVD
 from sklearn.random_projection import SparseRandomProjection
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import MiniBatchKMeans, SpectralClustering, Birch, AgglomerativeClustering, AffinityPropagation, OPTICS
+from sklearn.cluster import MiniBatchKMeans, SpectralClustering, Birch, AgglomerativeClustering, AffinityPropagation, \
+    OPTICS
 from sklearn_extra.cluster import KMedoids
 from sklearn.neighbors import kneighbors_graph
 import faiss
@@ -86,14 +88,16 @@ def save_leaves_data(files, save_name):
 
 
 def perform_dim_reduction(data, n, batch, base_name):
-
     # PCA
     print('Doing  PCA')
     ipca = IncrementalPCA(n_components=n, batch_size=batch)
     for i in range(0, data.shape[0], batch):
-        print('Processing from',i, 'to', i + batch)
+        print('Processing from', i, 'to', i + batch)
         ipca.partial_fit(data[i: i + batch])
     reduced_data_pca = ipca.transform(data)
+    # joblib.dump(ipca, 'LOCATION.pkl')
+    # ipca = joblib.load('LOCATION.pkl')
+    # new_data_pca =  ipca.transform(new_data)
     save_name = os.path.join(base_name, 'reduced_data_pca.npy')
     np.save(save_name, reduced_data_pca)
 
@@ -101,6 +105,7 @@ def perform_dim_reduction(data, n, batch, base_name):
     print('Doing  Truncated SVD')
     svd = TruncatedSVD(n_components=n)
     reduced_data_svd = svd.fit_transform(data)
+    # new_data_svd = svd.transform(new_data)
     save_name = os.path.join(base_name, 'reduced_data_svd.npy')
     np.save(save_name, reduced_data_svd)
 
@@ -108,6 +113,7 @@ def perform_dim_reduction(data, n, batch, base_name):
     print('Doing  Random Projection')
     rp = SparseRandomProjection(n_components=n)
     reduced_data_rp = rp.fit_transform(data)
+    # new_data_rp = rp.transform(new_data)
     save_name = os.path.join(base_name, 'reduced_data_rp.npy')
     np.save(save_name, reduced_data_rp)
 
@@ -115,7 +121,7 @@ def perform_dim_reduction(data, n, batch, base_name):
     print('Doing  Autoencoder')
     input_dim = data.shape[1]
 
-    input_layer = Input(shape=(input_dim, ))
+    input_layer = Input(shape=(input_dim,))
     encoded = Dense(n, activation='relu')(input_layer)
     decoded = Dense(input_dim, activation='sigmoid')(encoded)
 
@@ -130,6 +136,10 @@ def perform_dim_reduction(data, n, batch, base_name):
                     validation_split=0.2)
 
     reduced_data_ae = encoder.predict(data)
+    # autoencoder.save('LOCATION.h5')
+    # encoder.save('LOCATION.h5')
+    # encoder = load_model('LOCATION.h5')
+    # new_data_ae = encoder.predict(new_data)
     save_name = os.path.join(base_name, 'reduced_data_ae.npy')
     np.save(save_name, reduced_data_ae)
 
@@ -160,6 +170,9 @@ def perform_clustering(multiple_data, data_name, base_name):
         print('Performing', cluster_name)
         mini_batch_kmeans = MiniBatchKMeans(n_clusters=2, random_state=42, batch_size=20000)
         cluster_kmeans = mini_batch_kmeans.fit_predict(data_scaled)
+        # save scaler and mini_batch_kmeans by pkl
+        # new_data_scaled = scaler.transform(new_data)
+        # new_cluster_kmeans = mini_batch_kmeans.predict(new_data_scaled)
         save_name = os.path.join(base_name, cluster_name + '_' + data_name[i] + '.npy')
         np.save(str(save_name), cluster_kmeans)
 
@@ -168,6 +181,11 @@ def perform_clustering(multiple_data, data_name, base_name):
         print('Performing', cluster_name)
         hdbscan_clusterer = hdbscan.HDBSCAN(min_cluster_size=100, min_samples=10)
         cluster_hdbscan = hdbscan_clusterer.fit_predict(data_scaled)
+        # save scaler and hdbscan_clusterer by pkl
+        # new_data_scaled = scaler.transform(new_data)
+        # HDBSCAN does not have a direct predict method like KMeans
+        # Instead, use the approximate_predict function
+        # _, new_cluster_hdbscan = hdbscan.approximate_predict(hdbscan_clusterer, new_data_scaled)
         save_name = os.path.join(base_name, cluster_name + '_' + data_name[i] + '.npy')
         np.save(str(save_name), cluster_hdbscan)
 
@@ -214,14 +232,53 @@ def perform_clustering(multiple_data, data_name, base_name):
         # np.save(str(save_name), cluster_optics)
 
         # FAISS
-        cluster_name = 'faiss'
-        print('Performing', cluster_name)
-        kmeans = faiss.Kmeans(d=data_scaled.shape[1], k=2, niter=20, verbose=True)
-        kmeans.train(data_scaled.astype(np.float32))
-        _, cluster_faiss = kmeans.index.search(data_scaled.astype(np.float32), 1)
-        cluster_faiss = cluster_faiss.flatten()
-        save_name = os.path.join(base_name, cluster_name + '_' + data_name[i] + '.npy')
-        np.save(str(save_name), cluster_faiss)
+        try:
+            cluster_name = 'faiss'
+            print('Performing', cluster_name)
+            kmeans = faiss.Kmeans(d=data_scaled.shape[1], k=2, niter=20, verbose=True)
+            kmeans.train(data_scaled.astype(np.float32))
+            _, cluster_faiss = kmeans.index.search(data_scaled.astype(np.float32), 1)
+            cluster_faiss = cluster_faiss.flatten()
+            # joblib.dump(scaler, 'scaler.pkl')
+            # faiss.write_index(kmeans.index, 'faiss_kmeans_index.bin')
+            # new_data_scaled = scaler.transform(new_data)
+            # _, new_cluster_faiss = index.search(new_data_scaled.astype(np.float32), 1)
+            # new_cluster_faiss = new_cluster_faiss.flatten()
+            save_name = os.path.join(base_name, cluster_name + '_' + data_name[i] + '.npy')
+            np.save(str(save_name), cluster_faiss)
+        except Exception as e:
+            print('Could not perform', cluster_name, 'for', data_name[i], '\nThe error is:', e)
+
+
+def save_clustered_images(img_num, clustered_files, counter):
+    print('Saving Image', img_num)
+    leaves_save_name = os.path.join(info()['save_dir'], 'clustered', 'leaves_shadows_' + str(img_num) + '.npz')
+    a = np.load(leaves_save_name)
+    aa = a['img']
+    base_name = os.path.join(info()['save_dir'], 'clustered', 'dim_reduced', 'clustered', str(img_num))
+    if not os.path.exists(base_name):
+        os.makedirs(base_name)
+    # cluster_name = 'kmeans'
+    # data_name = ['ae', 'pca', 'rp', 'svd']
+    # i = 1
+    # save_name = os.path.join(base_name, cluster_name + '_' + data_name[i] + '.npy')
+
+    for f in range(len(clustered_files)):
+        save_name = clustered_files[f]
+        kpca = np.load(save_name)
+        test_cluster = kpca[counter: counter + aa.shape[0]]
+        pix = a['pix']
+        testimg = np.ones((2000, 900)) * 2
+        testimg = testimg.reshape(-1)
+        testimg[pix] = test_cluster
+        testimg = testimg.reshape((2000, 900))
+        plt.imshow(testimg)
+        fname = os.path.splitext(os.path.basename(clustered_files[f]))[0]
+        save_name = os.path.join(base_name, fname + '.tiff')
+        plt.savefig(save_name)
+        plt.close()
+
+    return counter + aa.shape[0]
 
 
 if __name__ == "__main__":
@@ -277,16 +334,15 @@ if __name__ == "__main__":
     # data_name = ['ae', 'pca', 'rp', 'svd']
     # base_name = os.path.join(info()['save_dir'], 'clustered', 'dim_reduced', 'clustered')
 
-    perform_clustering(all_reduced, data_names, base_cluster_save_name)
+    need_to_cluster = 0
+    if need_to_cluster:
+        perform_clustering(all_reduced, data_names, base_cluster_save_name)
 
+    clustered_data_files = glob.glob(os.path.join(base_cluster_save_name, '*.npy'))
 
-
-
-
-
-
-
-
-
+    # save the images
+    start_idx = 0
+    for i in range(len(train_img)):
+        start_idx = save_clustered_images(train_img[i], clustered_data_files, start_idx)
 
     train_csv = os.path.join(info()['save_dir'], 'clustered', 'leaves_shadows_train.csv')

@@ -1,10 +1,91 @@
 import os
 import random
 import re
+
+import cv2
 import spectral as sp
 import numpy as np
 # from shapely.geometry import Polygon
 from PIL import Image, ImageDraw
+
+
+def get_keypoints_from_region(image, region):
+    """
+    Extracts SIFT keypoints and descriptors from a specific region of an image.
+    Args:
+    - image: The input image.
+    - region: A tuple of (x, y, width, height) specifying the region.
+
+    Returns:
+    - keypoints: Keypoints detected in the region.
+    - descriptors: Descriptors for the keypoints.
+    """
+    x, y, w, h = region
+    roi = image[y:y + h, x:x + w]  # Crop the region of interest (ROI)
+    gray_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+
+    # Detect SIFT keypoints and descriptors in the region
+    sift = cv2.SIFT_create()
+    keypoints, descriptors = sift.detectAndCompute(gray_roi, None)
+
+    # Adjust keypoint positions to original image coordinates
+    for kp in keypoints:
+        kp.pt = (kp.pt[0] + x, kp.pt[1] + y)
+
+    return keypoints, descriptors
+
+
+def match_features_and_align(image1, image2, keypoints1, descriptors1):
+    """
+    Matches SIFT features between two images and computes a homography to align them.
+    Args:
+    - image1: The first image (base image).
+    - image2: The second image (to be aligned).
+    - keypoints1: Keypoints detected in the first image.
+    - descriptors1: Descriptors for the keypoints in the first image.
+
+    Returns:
+    - aligned_image: The aligned second image.
+    """
+    # Convert the second image to grayscale
+    gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+
+    # Detect SIFT keypoints and descriptors in the second image
+    sift = cv2.SIFT_create()
+    keypoints2, descriptors2 = sift.detectAndCompute(gray2, None)
+
+    # Use FLANN-based matcher to find matching features
+    index_params = dict(algorithm=1, trees=5)
+    search_params = dict(checks=50)
+    flann = cv2.FlannBasedMatcher(index_params, search_params)
+    matches = flann.knnMatch(descriptors1, descriptors2, k=2)
+
+    # Apply ratio test to select good matches
+    good_matches = []
+    for m, n in matches:
+        if m.distance < 0.7 * n.distance:
+            good_matches.append(m)
+
+    # Extract location of good matches
+    src_pts = np.float32([keypoints1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+    dst_pts = np.float32([keypoints2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
+
+    # Compute homography matrix
+    H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
+
+    # Use homography matrix to warp the second image
+    height, width, _ = image1.shape
+    aligned_image = cv2.warpPerspective(image2, H, (width, height))
+
+    return aligned_image, H, good_matches, keypoints2
+
+
+# align two images with given fixed points
+def align_image_with_reference(src_img, dst_img, src_pts, dst_pts):
+    h_matrix, status = cv2.findHomography(dst_pts, src_pts)
+    height, width = src_img.shape[:2]
+    aligned_image = cv2.warpPerspective(dst_img, h_matrix, (width, height))
+    return aligned_image
 
 
 # read hyperspectral image by bands
