@@ -14,7 +14,7 @@ from scipy.io import savemat
 
 # import random
 # import cv2
-
+from concurrent.futures import ProcessPoolExecutor
 # from test_pre_processing import kernel
 from utils import *
 # import seaborn as sns
@@ -78,53 +78,57 @@ def downsampled_image(filename):
 
 
 def virus_or_not(img, idx):
-    thresh = 0.8
+    # thresh = 0.8
     model_name = os.path.join(info()['save_dir'], 'model_opt_virus_classifier.keras')
     model = keras.models.load_model(model_name)
 
     rgb_image = img[:, [112, 69, 26]]
     rgb_image /= np.max(rgb_image)
+    rgb_image = rgb_image.reshape((2000 // down_dim_size, 900 // down_dim_size, 3))
 
     img = img[idx, :]
-    pred = model.predict(img)
-    pred = np.squeeze((pred >= thresh).astype(int))
-    pred_idx = np.where(pred)[0]
-    infected = len(pred_idx)
+    pred_base = model.predict(img)
 
-    # len(pred) got zero, fix it! - probably for norkotah 9
-    infected_percentage = round(infected / len(pred), 6)    # round to 6 decimal places
+    thresh_list = [0.5, 0.6, 0.7]
+    for thresh in thresh_list:
+        pred = np.squeeze((pred_base >= thresh).astype(int))
+        pred_idx = np.where(pred)[0]
+        infected = len(pred_idx)
 
-    rgb_image = rgb_image.reshape((2000 // down_dim_size, 900 // down_dim_size, 3))
-    img_pred = rgb_image
+        # len(pred) got zero, fix it! - probably for norkotah 9
+        infected_percentage = round(infected / len(pred), 6)    # round to 6 decimal places
 
-    height, width, _ = img_pred.shape
-    rows = idx[pred_idx] // width
-    cols = idx[pred_idx] % width
-    img_pred[rows, cols, :] = 1
+        img_pred = rgb_image
 
-    save_name = os.path.join(save_loc, 'virus_predictions', farm_rename + '_' + str(img_num) + '_inf_per_' +
-                             str(infected_percentage) + '_inf_' + str(infected) + '_in_' + str(len(pred)) +
-                             '_kernel_size_' + str(kernel_size) + '_' + str(down_dim_size) + '_thresh_' +
-                             str(thresh) + '.png')
+        height, width, _ = img_pred.shape
+        rows = idx[pred_idx] // width
+        cols = idx[pred_idx] % width
+        img_pred[rows, cols, :] = 1
 
-    plt.subplot(1, 2, 1)
-    plt.imshow(rgb_image)
-    plt.axis('off')
-    plt.title('RGB Image')
-    plt.subplot(1, 2, 2)
-    plt.imshow(img_pred)
-    plt.axis('off')
-    plt.title('Predicted Image')
-    plt.savefig(save_name, bbox_inches='tight', pad_inches=0, dpi=300)
-    plt.close()
+        save_name = os.path.join(save_loc, 'virus_predictions', farm_rename + '_' + str(img_num) + '_inf_per_' +
+                                 str(infected_percentage) + '_inf_' + str(infected) + '_in_' + str(len(pred)) +
+                                 '_kernel_size_' + str(kernel_size) + '_' + str(down_dim_size) + '_thresh_' +
+                                 str(thresh) + '.png')
 
-    return pred
+        plt.figure()
+        plt.subplot(1, 2, 1)
+        plt.imshow(rgb_image)
+        plt.axis('off')
+        plt.title('RGB Image')
+        plt.subplot(1, 2, 2)
+        plt.imshow(img_pred)
+        plt.axis('off')
+        plt.title('Predicted Image')
+        plt.savefig(save_name, bbox_inches='tight', pad_inches=0, dpi=300)
+        plt.close()
+
+    return pred_base
 
 
 if __name__ == "__main__":
     # choose from: BART, norota, umatilla
-    # farm_names = ['BART', 'norota', 'umatilla']
-    farm_names = ['norota']
+    farm_names = ['BART', 'norota', 'umatilla']
+    # farm_names = ['norota']
 
     for farm_name in farm_names:
         kernel_size = 3
@@ -178,7 +182,14 @@ if __name__ == "__main__":
             savemat(idx_save_name_mat, {'idx': idx_potato})
 
             filenames = [raw_files[count], first_der[count], second_der[count]]
-            image = downsampled_image(filenames)
+
+            img_save_name = os.path.join(save_loc, 'potato_masks', farm_rename + '_' + str(img_num) + '_kernel_size_' +
+                                     str(kernel_size) + '_' + str(down_dim_size) + '_downsampled_data' + '.npy')
+
+            if os.path.exists(img_save_name):
+                image = np.load(img_save_name)
+            else:
+                image = downsampled_image(filenames)
             try:
                 predictions = virus_or_not(image, idx_potato)
             except:
