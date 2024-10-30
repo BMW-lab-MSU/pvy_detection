@@ -11,7 +11,44 @@ from scipy.io import loadmat, savemat
 import matplotlib.pyplot as plt
 
 
+def process_file(count):
+    ndvi_data = np.squeeze(read_hyper(ndvi_files[count])[0])
 
+    # Skip if shape doesn't match
+    if ndvi_data.shape != (2000, 900):
+        return None
+
+    match = re.search(r'_L_(\d+)-radiance', ndvi_files[count])
+    img_num = int(match.group(1))
+    print('Processing', farm_rename, img_num)
+
+    # load the data
+    raw_data = read_hyper(raw_files[count])[0]
+    raw_data = raw_data[:, :, 1:-1]  # remove first and last band to match the 223 bands from previous year
+    first_data = read_hyper(first_der[count])[0]
+    first_data = first_data[:, :, 1:-1]  # remove first and last band to match the 223 bands from previous year
+    second_data = read_hyper(second_der[count])[0]
+    second_data = second_data[:, :, 1:-1]  # remove first and last band to match the 223 bands from previous year
+
+    patch_creator = PatchCreator(ndvi_data, raw_data, first_data, second_data, patch_size, target_shape,
+                                 max_zeroes, threshold_to_clear_shadow)
+
+    patches = patch_creator.create_patches()
+
+    # Create the PatchImageGenerator object
+    patch_image_generator = PatchImageGenerator(ndvi_data, patch_size, target_shape, patches)
+
+    # Generate the patch image
+    generated_image = patch_image_generator.generate_patch_image()
+
+    # save the patches and the combined image of the patches
+    patch_save_path = f"{save_loc}/patches/{farm_rename}_{img_num}_patches_{len(patches)}.npy"
+    img_save_path = f"{save_loc}/patches/{farm_rename}_{img_num}_patches_{len(patches)}.png"
+
+    np.save(patch_save_path, patches)
+    plt.imsave(img_save_path, generated_image)
+
+    return None
 
 
 if __name__ == "__main__":
@@ -45,33 +82,7 @@ if __name__ == "__main__":
         second_der = glob.glob(os.path.join(base_path, 'radiance___normalized_second_derivative', farm_name + '*.hdr'))
         second_der.sort()
 
-        for count in range(len(ndvi_files)):
-            ndvi_data = np.squeeze(read_hyper(ndvi_files[count])[0])
-            # ndvi_data[ndvi_data <= threshold_to_clear_shadow] = 0
-            if ndvi_data.shape != (2000, 900):
-                continue
-
-            match =  re.search(r'_L_(\d+)-radiance', ndvi_files[count])
-            img_num = int(match.group(1))
-            print('Processing', farm_rename, img_num)
-
-            # load the data
-            raw_data = read_hyper(raw_files[count])[0]
-            raw_data = raw_data[:, :, 1:-1]     # remove first and last band to match the 223 bands from previous year
-            first_data = read_hyper(first_der[count])[0]
-            first_data = first_data[:, :, 1:-1]  # remove first and last band to match the 223 bands from previous year
-            second_data = read_hyper(second_der[count])[0]
-            second_data = second_data[:, :, 1:-1]  # remove first and last band to match the 223 bands from previous year
-
-            patch_creator = PatchCreator(ndvi_data, raw_data, first_data, second_data, patch_size, target_shape,
-                                         max_zeroes, threshold_to_clear_shadow)
-
-            patches = patch_creator.create_patches()
-
-
-
-    # do the ndvi first and just downsample by 3x
-
-
-    # create a patch of 15x15 without any overlap if there is ndvi data and make them traceable
+        # Parallel processing using ThreadPoolExecutor
+        with ThreadPoolExecutor() as executor:
+            executor.map(process_file, range(len(ndvi_files)))
 
