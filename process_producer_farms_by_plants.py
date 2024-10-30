@@ -43,9 +43,18 @@ def process_file(count):
 
     # save the patches and the combined image of the patches
     patch_save_path = f"{save_loc}/patches/{farm_rename}_{img_num}_patches_{len(patches)}.npy"
+    patch_save_path_mat = f"{save_loc}/patches/{farm_rename}_{img_num}_patches_{len(patches)}.mat"
     img_save_path = f"{save_loc}/patches/{farm_rename}_{img_num}_patches_{len(patches)}.png"
 
+    # Prepare a dictionary to store the extracted data
+    mat_data = {
+        'ndvi_patch': [entry['ndvi_patch'] for entry in data],
+        'hyperspectral_patch': [entry['hyperspectral_patch'] for entry in data],
+        'index': [entry['index'] for entry in data]
+    }
+
     np.save(patch_save_path, patches)
+    savemat(patch_save_path_mat, mat_data)
     plt.imsave(img_save_path, generated_image)
 
     return None
