@@ -5,8 +5,148 @@ import re
 import cv2
 import spectral as sp
 import numpy as np
+from scipy.ndimage import zoom
 # from shapely.geometry import Polygon
 from PIL import Image, ImageDraw
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+
+
+class PatchImageGenerator:
+    def __init__(self, ndvi_data, patch_size, target_shape, patches_with_indices):
+        """
+        Initialize the class with NDVI data, patch size, and the patches with indices.
+
+        :param ndvi_data: 2D array of NDVI data (downsampled).
+        :param patch_size: Tuple (height, width) of patch size.
+        :param target_shape: Tuple (height, width) of the entire image shape.
+        :param patches_with_indices: List of patches with their respective indices (i, j).
+        """
+        self.ndvi_data = ndvi_data
+        self.patch_size = patch_size
+        self.target_shape = target_shape
+        self.patches_with_indices = patches_with_indices
+
+    def generate_patch_image(self):
+        """
+        Generate an image of patches with the rest of the image filled with value 2.
+
+        :return: The generated image as a 2D array.
+        """
+        # Create an empty image filled with 2s
+        image = np.full(self.target_shape, 2, dtype=int)
+
+        # Iterate through the patches and place them in the image
+        for patch_info in self.patches_with_indices:
+            patch = patch_info['ndvi_patch']
+            i, j = patch_info['index']
+
+            # Create a binary version of the patch: 0 for zeroes, 1 for positive values
+            binary_patch = np.where(patch > 0, 1, 0)
+
+            # Insert the binary patch into the correct position in the image
+            image[i:i + self.patch_size[0], j:j + self.patch_size[1]] = binary_patch
+
+        return image
+
+
+def downsample_data(data, target_shape, thresh):
+    """
+    Downsample a 2D or 3D array to the target shape
+
+    :param data: A 2D (height x width) or 3D (height x width x bands) array
+    :param target_shape: Tuple of (height, width)
+    :param thresh: threshold value to just keep the foliage
+    :return: downsampled data of target_shape
+    """
+
+    zoom_factors = (target_shape[0] / data.shape[0], target_shape[1] / data.shape[1])
+
+    if data.ndim == 3:  # for 3D hyperspectral data
+        zoom_factors += (1, )   # no zoom for the third axis (bands)
+
+    image = zoom(data, zoom_factors, order=3)  # cubic interpolation
+    image[image <= thresh] = 0
+
+    return image
+
+
+class PatchCreator:
+    def __init__(self, ndvi, raw, first, second, patch_size, target_shape, max_zeroes, thresh):
+        """
+        Initialize the class with the data and downsample to the target shape
+
+        :param ndvi: 2D array of (height x width) of NDVI values
+        :param raw: 3D arrray of (height x width x bands) of raw hyperspectral data
+        :param first: 3D arrray of (height x width x bands) of the first derivative of the raw data
+        :param second: 3D arrray of (height x width x bands) of the second derivative of the raw data
+        :param patch_size: Tuple (height, width) of the patch size of a plant
+        :param target_shape: Tuple (height, width) to downsample to
+        :param max_zeroes: Maximum allowed zeroes in a patch
+        :param thresh: threshold value to just keep the foliage
+        """
+
+        # Downsample the data
+        self.ndvi = downsample_data(ndvi, target_shape, thresh)
+        self.raw = downsample_data(raw, target_shape, thresh)
+        self.first = downsample_data(first, target_shape, thresh)
+        self.second = downsample_data(second, target_shape, thresh)
+        self.patch_size = patch_size
+        self.max_zeroes = max_zeroes
+        self.thresh = thresh
+
+    def create_patch(self, row, col):
+        """
+        Create a patch of NDVI and the corresponding hyperspectral daa and check if they are valid
+
+        :param row: Row index from the top left corner of the data
+        :param col: Column index from the top left corner of the data
+        :return: Dictionary containing the ndvi and the hyperspectral patch and the indices
+        """
+
+        # NDVI patch
+        nvdi_patch = self.ndvi[row : row + self.patch_size[0], col : col + self.patch_size[1]]
+
+        # check if valid
+        if np.sum(nvdi_patch == 0) > self.max_zeroes:
+            return None
+
+        # Hyperspectral patches
+        raw_patch = self.raw[row : row + self.patch_size[0], col : col + self.patch_size[1], :]
+        first_patch = self.first[row: row + self.patch_size[0], col: col + self.patch_size[1], :]
+        second_patch = self.second[row: row + self.patch_size[0], col: col + self.patch_size[1], :]
+
+        # concatenate the hyperspectral patches
+        concatenated_hyper_patch = np.concatenate((raw_patch, first_patch, second_patch), axis=-1)
+
+        return {
+            'ndvi_patch': nvdi_patch,
+            'hyperspectral_patch': concatenated_hyper_patch,
+            'index': (row, col)
+        }
+
+
+    def create_patches(self):
+        """
+        Genearate patches for the entire image
+
+        :return: List of dictionaries containing NDVi and the hyperspectral patches and the indices
+        """
+        patches = []
+        futures = []
+
+        # with ProcessPoolExecutor() as executor:
+        with ThreadPoolExecutor() as executor:
+            for i in range(0, self.ndvi.shape[0] - self.patch_size[0] + 1, self.patch_size[0]):
+                for j in range(0, self.ndvi.shape[1] - self.patch_size[1] + 1, self.patch_size[1]):
+                    # print('Working on Index', i, j)
+                    futures.append(executor.submit(self.create_patch, i, j))
+
+            for future in futures:
+                patch = future.result()
+                if patch:
+                    patches.append(patch)
+
+        return patches
 
 
 def get_keypoints_from_region(image, region):
