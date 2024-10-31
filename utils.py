@@ -58,14 +58,17 @@ def downsample_data(data, target_shape, thresh):
     :param thresh: threshold value to just keep the foliage
     :return: downsampled data of target_shape
     """
-
+    # print('Downsampling data with shape', data.shape)
     zoom_factors = (target_shape[0] / data.shape[0], target_shape[1] / data.shape[1])
 
     if data.ndim == 3:  # for 3D hyperspectral data
         zoom_factors += (1, )   # no zoom for the third axis (bands)
 
     image = zoom(data, zoom_factors, order=3)  # cubic interpolation
-    image[image <= thresh] = 0
+
+    # apply threshold only to ndvi (2D) data
+    if data.ndim == 2:
+        image[image <= thresh] = 0
 
     return image
 
@@ -102,16 +105,16 @@ class PatchCreator:
         :param col: Column index from the top left corner of the data
         :return: Dictionary containing the ndvi and the hyperspectral patch and the indices
         """
-
+        # print('Creating Patches for row-col', row, col)
         # NDVI patch
-        nvdi_patch = self.ndvi[row : row + self.patch_size[0], col : col + self.patch_size[1]]
+        nvdi_patch = self.ndvi[row: row + self.patch_size[0], col: col + self.patch_size[1]]
 
         # check if valid
         if np.sum(nvdi_patch == 0) > self.max_zeroes:
             return None
 
         # Hyperspectral patches
-        raw_patch = self.raw[row : row + self.patch_size[0], col : col + self.patch_size[1], :]
+        raw_patch = self.raw[row: row + self.patch_size[0], col: col + self.patch_size[1], :]
         first_patch = self.first[row: row + self.patch_size[0], col: col + self.patch_size[1], :]
         second_patch = self.second[row: row + self.patch_size[0], col: col + self.patch_size[1], :]
 
