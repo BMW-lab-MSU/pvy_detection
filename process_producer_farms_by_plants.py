@@ -20,7 +20,7 @@ def process_file(count):
 
     match = re.search(r'_L_(\d+)-radiance', ndvi_files[count])
     img_num = int(match.group(1))
-    print('Processing', farm_rename, img_num)
+    print('Loading Data for', farm_rename, img_num)
 
     # load the data
     raw_data = read_hyper(raw_files[count])[0]
@@ -30,15 +30,18 @@ def process_file(count):
     second_data = read_hyper(second_der[count])[0]
     second_data = second_data[:, :, 1:-1]  # remove first and last band to match the 223 bands from previous year
 
+    print('Creating Patches for', farm_rename, img_num)
     patch_creator = PatchCreator(ndvi_data, raw_data, first_data, second_data, patch_size, target_shape,
                                  max_zeroes, threshold_to_clear_shadow)
-
+    # print('Starting Create Patches Function for', farm_rename, img_num)
     patches = patch_creator.create_patches()
 
     # Create the PatchImageGenerator object
+    # print('Creating Patch Image Generator Object for', farm_rename, img_num)
     patch_image_generator = PatchImageGenerator(ndvi_data, patch_size, target_shape, patches)
 
     # Generate the patch image
+    # print('Starting Generate Patch Image Function for', farm_rename, img_num)
     generated_image = patch_image_generator.generate_patch_image()
 
     # save the patches and the combined image of the patches
@@ -48,14 +51,16 @@ def process_file(count):
 
     # Prepare a dictionary to store the extracted data
     mat_data = {
-        'ndvi_patch': [entry['ndvi_patch'] for entry in data],
-        'hyperspectral_patch': [entry['hyperspectral_patch'] for entry in data],
-        'index': [entry['index'] for entry in data]
+        'ndvi_patch': [entry['ndvi_patch'] for entry in patches],
+        'hyperspectral_patch': [entry['hyperspectral_patch'] for entry in patches],
+        'index': [entry['index'] for entry in patches]
     }
 
     np.save(patch_save_path, patches)
     savemat(patch_save_path_mat, mat_data)
     plt.imsave(img_save_path, generated_image)
+
+    print('Saved', farm_rename, img_num)
 
     return None
 
@@ -94,4 +99,5 @@ if __name__ == "__main__":
         # Parallel processing using ThreadPoolExecutor
         with ThreadPoolExecutor() as executor:
             executor.map(process_file, range(len(ndvi_files)))
+            # executor.map(process_file, range(1))
 
