@@ -11,6 +11,21 @@ from PIL import Image, ImageDraw
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
 
+def normalize_to_range(data, new_min, new_max):
+    """
+    Normalize data to the specified range
+
+    :param data: 1D, 2D, or 3D array
+    :param new_min: New minimum value
+    :param new_max: New maximum value
+    :return: Return the normalized data to the specified range
+    """
+    old_min = np.min(data)
+    old_max = np.max(data)
+
+    return (((data - old_min) * (new_max - new_min)) / (old_max - old_min)) + new_min
+
+
 class PatchImageGenerator:
     def __init__(self, ndvi_data, patch_size, target_shape, patches_with_indices):
         """
