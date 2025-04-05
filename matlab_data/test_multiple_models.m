@@ -3,28 +3,32 @@ clc; clear; close all;
 disp('Loading Data')
 
 % Load the training and testing data
-load('susceptible_train_test_data.mat'); % Ensure this file is in the working directory
+% load('susceptible_train_test_data.mat'); % Ensure this file is in the working directory
+load('susceptible_no_norm_train_test_data.mat');
+
 
 % % Extract labels and features from the loaded data
 % train_data = susceptible_train_test_data.train_data;
 % test_data = susceptible_train_test_data.test_data;
 
 % Convert labels to categorical
-train_labels = categorical(train_data(:, 1)); % Labels for training
+% train_labels = categorical(train_data(:, 1)); % Labels for training
 test_labels = categorical(test_data(:, 1));   % Labels for testing
-train_features = train_data(:, 2:end);        % Features for training
-test_features = test_data(:, 2:end);          % Features for testing
+% train_features = train_data(:, 2:end);        % Features for training
+% test_features = test_data(:, 2:end);          % Features for testing
+test_features = double(test_data(:, 2:end));
 
 % Verify that train_features and test_features have matching sizes
-if size(train_features, 1) ~= numel(train_labels)
-    error('Number of rows in train_features and number of train_labels must match.');
-end
+% if size(train_features, 1) ~= numel(train_labels)
+%     error('Number of rows in train_features and number of train_labels must match.');
+% end
 if size(test_features, 1) ~= numel(test_labels)
     error('Number of rows in test_features and number of test_labels must match.');
 end
 
 % Load the pre-trained models from the results cell array
-load('trained_models.mat', 'results'); % Assuming 'results' is a 6x1 cell containing trained models
+% load('trained_models.mat', 'results'); % Assuming 'results' is a 6x1 cell containing trained models
+load('trained_models_no_norm.mat', 'results');
 
 % Model types
 modelTypes = {'SVM', 'DecisionTree', 'KNN', 'LogisticRegression', 'NeuralNetwork', 'CNN'};
@@ -60,8 +64,13 @@ for i = 1:numel(modelTypes)
     % Calculate accuracy
     testAcc = sum(testPred == test_labels) / numel(test_labels);
     
-    % Generate confusion matrix
-    confusionMatrix = confusionmat(test_labels, testPred);
+    % SINCE PVY detection, the infected class need to be first class
+    % so we invert the labels to focus on the infected predictions
+    test_labels_inv = ~(test_labels == "1");
+    testPred = ~(testPred == "1");
+    
+    % Generate confusion matrix & transpose to match with paper
+    confusionMatrix = confusionmat(test_labels_inv, testPred)';
     
     % Extract TP, FP, FN, TN from confusion matrix
     TP = confusionMatrix(1, 1); % True Positives
@@ -92,6 +101,7 @@ for i = 1:numel(modelTypes)
 end
 
 % Save all results to a file
-save('updated_trained_models.mat', 'modelResults');
+% save('updated_trained_models.mat', 'modelResults');
+save('updated_trained_models_no_norm.mat', 'modelResults');
 
 disp('Predictions, accuracies, and confusion matrices have been saved.');

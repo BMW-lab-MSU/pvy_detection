@@ -5,10 +5,12 @@ clc; clear; close all;
 disp('Loading Data')
 
 % Load the training data from a .mat file
-load('susceptible_train_test_data.mat'); % Ensure this file is in the working directory
+% load('susceptible_train_test_data.mat'); % Ensure this file is in the working directory
+load('susceptible_no_norm_train_test_data.mat');
 
 % Extract labels and features from the loaded data
-data = train_data;   
+% data = train_data;
+data = double(train_data);
 labels = categorical(data(:, 1)); % Convert class labels to categorical for deep learning
 features = data(:, 2:end);        % Extract feature values (remaining columns)
 
@@ -37,6 +39,8 @@ hyperparams = struct('Optimizer', 'bayesopt', ...
 modelTypes = {'SVM', 'DecisionTree', 'KNN', 'LogisticRegression', 'NeuralNetwork', 'CNN'};
 results = cell(numel(modelTypes), 1);
 
+runtimes = zeros(numel(modelTypes), 1);
+
 % Train models in parallel
 parfor i = 1:numel(modelTypes)
     modelType = modelTypes{i};
@@ -44,6 +48,8 @@ parfor i = 1:numel(modelTypes)
     
     % Initialize model variable to avoid uninitialized temporary warnings
     model = [];
+
+    tStart = tic; % Start timer
     
     switch modelType
         case 'SVM'
@@ -122,19 +128,26 @@ parfor i = 1:numel(modelTypes)
             % Train the CNN
             model = trainNetwork(reshapedFeatures, labels, layers, options);
     end
+
+    elapsedTime = toc(tStart); % End timer
+    runtimes(i) = elapsedTime; % Store runtime
     
     % Store the model in results cell array
     results{i} = model;
 end
 
 % save all the trained models together
-save('trained_models.mat', "results");
+% save('trained_models.mat', "results");
+save('trained_models_no_norm.mat', "results");
+
+save('model_runtimes_no_norm.mat', 'modelTypes', 'runtimes');
 
 % Save each model outside the parfor loop
 for i = 1:numel(modelTypes)
     modelType = modelTypes{i};
     model = results{i}; % Retrieve each model from results cell
-    save(sprintf('%s_model_results.mat', modelType), 'model');
+    % save(sprintf('%s_model_results.mat', modelType), 'model');
+    save(sprintf('%s_model_results_no_norm.mat', modelType), 'model');
     fprintf('%s model training completed and saved.\n', modelType);
 end
 

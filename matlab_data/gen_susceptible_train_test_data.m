@@ -4,6 +4,30 @@ data = readmatrix('compressed_virus_data.csv');
 
 img_nums = unique(data(:, 1));
 
+%% Modify the code to get the susceptibe data without normalization
+data_files = dir('../no_norm_compressed_virus_yes_no_img_*.mat');
+
+tmp_data = [];
+
+for j = 1 : numel(data_files)
+    img_num = regexp(data_files(j).name, 'img_(\d+)_count', 'tokens');
+    img_num = str2double(img_num{1}{1});
+    
+    data_info = load(fullfile(data_files(j).folder, data_files(j).name));
+    tmp = data_info.data_selected;
+    labels = data_info.label_selected;
+    idx = data_info.combined_indices + 1;
+    
+    roi_pixels = data(data(:, 1) == img_num, 2);
+    idx = ismember(idx, roi_pixels);
+    roi_labels = labels(idx)';
+    
+    img_num = repelem(img_num, length(roi_pixels))';
+    tmp_data = [tmp_data; [img_num, roi_pixels, roi_labels, tmp(idx, :)]]; 
+end
+
+data = tmp_data;
+
 %% find the number of infected pixels per image
 
 % for i = 1 : length(img_nums)
@@ -65,4 +89,5 @@ rng(0);
 idx = randperm(size(train_data, 1));
 train_data = train_data(idx, :);
 
-save('susceptible_train_test_data.mat', "train_data", "test_data");
+% save('susceptible_train_test_data.mat', "train_data", "test_data");
+save('susceptible_no_norm_train_test_data.mat', "train_data", "test_data");
