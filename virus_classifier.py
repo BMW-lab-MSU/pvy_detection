@@ -52,7 +52,8 @@ def get_potato_not_potato(ndvi_files_sorted, label_files_sorted):
     return masks
 
 
-def process_and_generate_data(all_labels, raw_files, all_first, all_second, save_name):
+# def process_and_generate_data(all_labels, raw_files, all_first, all_second, save_name):
+def process_and_generate_data(all_labels, raw_files, save_name):
     random.seed(10)
     idx = list(range(len(all_labels)))
     random.shuffle(idx)
@@ -75,16 +76,19 @@ def process_and_generate_data(all_labels, raw_files, all_first, all_second, save
 
     for num in range(len(all_labels)):
         print(f"Working on Image ", num)
-        img0 = read_hyper(raw_files[num])[0]
-        img1 = read_hyper(all_first[num])[0]
-        img2 = read_hyper(all_second[num])[0]
-        img = np.concatenate((img0, img1, img2), axis=2)
-        del img0, img1, img2
+        # img0 = read_hyper(raw_files[num])[0]
+        img = read_hyper(raw_files[num])[0]
+        # img1 = read_hyper(all_first[num])[0]
+        # img2 = read_hyper(all_second[num])[0]
+        # img = np.concatenate((img0, img1, img2), axis=2)
+        # del img0, img1, img2
         label_whole = np.load(all_labels[num])
         down_sampled_label = convolve(label_whole, kernel1, mode='valid')[::kernel_size,
                              ::kernel_size].flatten().astype(int)
+        # down_sampled_img = convolve(img, kernel2, mode='valid')[::kernel_size, ::kernel_size].reshape(
+        #     (200 * 90, 223 * 3))
         down_sampled_img = convolve(img, kernel2, mode='valid')[::kernel_size, ::kernel_size].reshape(
-            (200 * 90, 223 * 3))
+            (200 * 90, 223))
         del img
         mask = masked_potatoes[:, num].reshape(2000, 900)
         down_sampled_mask = convolve(mask, kernel1, mode='valid')[::kernel_size, ::kernel_size].flatten().astype(int)
@@ -110,10 +114,14 @@ def process_and_generate_data(all_labels, raw_files, all_first, all_second, save
             data_selected = down_sampled_img[combined_indices, :]
             del down_sampled_img
             img_num = all_labels[num].split('_')[-1].split('-')[0]
+            # file_name_py = os.path.join(info()['save_dir'],
+            #                             'compressed_virus_yes_no_img_' + str(img_num) + '_count_' + str(num) + '.npz')
+            # file_name_mat = os.path.join(info()['save_dir'],
+            #                              'compressed_virus_yes_no_img_' + str(img_num) + '_count_' + str(num) + '.mat')
             file_name_py = os.path.join(info()['save_dir'],
-                                        'compressed_virus_yes_no_img_' + str(img_num) + '_count_' + str(num) + '.npz')
+                                        'no_norm_compressed_virus_yes_no_img_' + str(img_num) + '_count_' + str(num) + '.npz')
             file_name_mat = os.path.join(info()['save_dir'],
-                                         'compressed_virus_yes_no_img_' + str(img_num) + '_count_' + str(num) + '.mat')
+                                         'no_norm_compressed_virus_yes_no_img_' + str(img_num) + '_count_' + str(num) + '.mat')
             np.savez(file_name_py, combined_indices=combined_indices, label_selected=label_selected,
                      data_selected=data_selected)
             savemat(file_name_mat, {'combined_indices': combined_indices, 'label_selected': label_selected,
@@ -152,13 +160,14 @@ if __name__ == "__main__":
     ndvi_files.sort()
     labels = glob.glob(os.path.join(info()['save_dir'], 'labels', '*.npy'))
     labels.sort()
-    raw = glob.glob(os.path.join(info()['general_dir'], 'smoothed_clipped_normalized', '*.hdr'))
+    # raw = glob.glob(os.path.join(info()['general_dir'], 'smoothed_clipped_normalized', '*.hdr'))
+    raw = glob.glob(os.path.join(info()['general_dir'], 'raw_rad_ref_smooth_clipped', '*.hdr'))
     raw.sort()
-    first_der = glob.glob(os.path.join(info()['general_dir'], 'smoothed_clipped_normalized_first_derivative', '*.hdr'))
-    first_der.sort()
-    second_der = glob.glob(
-        os.path.join(info()['general_dir'], 'smoothed_clipped_normalized_second_derivative', '*.hdr'))
-    second_der.sort()
+    # first_der = glob.glob(os.path.join(info()['general_dir'], 'smoothed_clipped_normalized_first_derivative', '*.hdr'))
+    # first_der.sort()
+    # second_der = glob.glob(
+    #     os.path.join(info()['general_dir'], 'smoothed_clipped_normalized_second_derivative', '*.hdr'))
+    # second_der.sort()
 
     mask_save_name = os.path.join(info()['save_dir'], 'masked_potato.npy')
     if os.path.exists(mask_save_name):
@@ -169,7 +178,8 @@ if __name__ == "__main__":
 
     save_data = 1
 
-    data_save_name = os.path.join(info()['save_dir'], 'virus_classifier_data.npz')
+    # data_save_name = os.path.join(info()['save_dir'], 'virus_classifier_data.npz')
+    data_save_name = os.path.join(info()['save_dir'], 'virus_classifier_data_without_normalization.npz')
     if os.path.exists(data_save_name) and not save_data:
         data = np.load(data_save_name)
         data_train = data['train_data']
@@ -179,12 +189,18 @@ if __name__ == "__main__":
         data_test = data['test_data']
         labels_test = data['test_labels']
     else:
-        [data_train, labels_train, data_val, labels_val, data_test, labels_test] = process_and_generate_data(labels,
-                                                                                                             raw,
-                                                                                                             first_der,
-                                                                                                             second_der,
-                                                                                                             data_save_name)
+        # [data_train, labels_train, data_val, labels_val, data_test, labels_test] = (
+        #     process_and_generate_data(labels,
+        #                               raw,
+        #                               first_der,
+        #                               second_der,
+        #                               data_save_name))
+        [data_train, labels_train, data_val, labels_val, data_test, labels_test] = (
+            process_and_generate_data(labels,
+                                      raw,
+                                      data_save_name))
 
+"""
     input_size = data_train.shape[1]
     # Calculate class weights for imbalanced dataset
     class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(labels_train), y=labels_train)
@@ -337,3 +353,4 @@ if __name__ == "__main__":
         plt_save_name = os.path.join(info()['save_dir'], 'Virus_True_and_Pred_for_Image_' + str(img_num) + '.png')
         plt.savefig(plt_save_name)
         plt.close()
+"""
