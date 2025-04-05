@@ -1,22 +1,22 @@
 clc; clear; close all;
 
 %{
-    CHANGE THE VALUE OF THE POINTER BELOW AS DESIRED
+    CHANGE THE VALUE OF THE taskID BELOW AS DESIRED
     
-    pointer = 1 : Train with Normalized, Susceptible data
-    pointer = 2 : Train Without Normalized, Susceptible data
+    taskID = 1 : Train with Normalized, Susceptible data
+    taskID = 2 : Train Without Normalized, Susceptible data
 %}
 
-pointer = 1;    % UPDATE THE VALUE AS DESIRED
+taskID = 1;    % UPDATE THE VALUE AS DESIRED
 
 
 
 % Load the testing data
 % Ensure this file/s is in the working directory
-if pointer == 1
+if taskID == 1
     disp('Training with Normalized, Susceptible data');
     load('susceptible_train_test_data.mat');
-elseif pointer == 2
+elseif taskID == 2
     disp('Training Without Normalized, Susceptible data');
     load('susceptible_no_norm_train_test_data.mat');
 else
@@ -151,10 +151,10 @@ parfor i = 1:numel(modelTypes)
 end
 
 % save all the trained models together
-if pointer == 1
+if taskID == 1
     save('trained_models.mat', "results");
     save('model_runtimes.mat', 'modelTypes', 'runtimes');
-elseif pointer == 2
+elseif taskID == 2
     save('trained_models_no_norm.mat', "results");
     save('model_runtimes_no_norm.mat', 'modelTypes', 'runtimes');
 end
@@ -163,9 +163,9 @@ end
 for i = 1:numel(modelTypes)
     modelType = modelTypes{i};
     model = results{i}; % Retrieve each model from results cell
-    if pointer == 1
+    if taskID == 1
         save(sprintf('%s_model_results.mat', modelType), 'model');
-    elseif pointer == 2
+    elseif taskID == 2
         save(sprintf('%s_model_results_no_norm.mat', modelType), 'model');
     end
     fprintf('%s model training completed and saved.\n', modelType);
