@@ -1,15 +1,29 @@
-% Clear the workspace and close figures
 clc; clear; close all;
 
-% Display message
-disp('Loading Data')
+%{
+    CHANGE THE VALUE OF THE POINTER BELOW AS DESIRED
+    
+    pointer = 1 : Train with Normalized, Susceptible data
+    pointer = 2 : Train Without Normalized, Susceptible data
+%}
 
-% Load the training data from a .mat file
-% load('susceptible_train_test_data.mat'); % Ensure this file is in the working directory
-load('susceptible_no_norm_train_test_data.mat');
+pointer = 1;    % UPDATE THE VALUE AS DESIRED
+
+
+
+% Load the testing data
+% Ensure this file/s is in the working directory
+if pointer == 1
+    disp('Training with Normalized, Susceptible data');
+    load('susceptible_train_test_data.mat');
+elseif pointer == 2
+    disp('Training Without Normalized, Susceptible data');
+    load('susceptible_no_norm_train_test_data.mat');
+else
+    error('Invalid Pointer!');
+end
 
 % Extract labels and features from the loaded data
-% data = train_data;
 data = double(train_data);
 labels = categorical(data(:, 1)); % Convert class labels to categorical for deep learning
 features = data(:, 2:end);        % Extract feature values (remaining columns)
@@ -137,17 +151,23 @@ parfor i = 1:numel(modelTypes)
 end
 
 % save all the trained models together
-% save('trained_models.mat', "results");
-save('trained_models_no_norm.mat', "results");
-
-save('model_runtimes_no_norm.mat', 'modelTypes', 'runtimes');
+if pointer == 1
+    save('trained_models.mat', "results");
+    save('model_runtimes.mat', 'modelTypes', 'runtimes');
+elseif pointer == 2
+    save('trained_models_no_norm.mat', "results");
+    save('model_runtimes_no_norm.mat', 'modelTypes', 'runtimes');
+end
 
 % Save each model outside the parfor loop
 for i = 1:numel(modelTypes)
     modelType = modelTypes{i};
     model = results{i}; % Retrieve each model from results cell
-    % save(sprintf('%s_model_results.mat', modelType), 'model');
-    save(sprintf('%s_model_results_no_norm.mat', modelType), 'model');
+    if pointer == 1
+        save(sprintf('%s_model_results.mat', modelType), 'model');
+    elseif pointer == 2
+        save(sprintf('%s_model_results_no_norm.mat', modelType), 'model');
+    end
     fprintf('%s model training completed and saved.\n', modelType);
 end
 
