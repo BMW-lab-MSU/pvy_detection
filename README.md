@@ -15,6 +15,7 @@ This repository contains the code for detecting **Potato Virus Y (PVY)** using h
 - **Data Processing**: Code for handling and preprocessing hyperspectral images, including feature generation and dataset splitting.
 - **Machine Learning**: Scripts for training and evaluating models that classify PVY-infected plants.
 - **Model Evaluation**: Tools for testing model performance and visualizing results.
+- **Feature Selection**: Ensemble Feature selection techniques to identify the most relevant spectra.
 
 ## Code Overview
 
